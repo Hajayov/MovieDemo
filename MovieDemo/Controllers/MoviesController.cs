@@ -11,18 +11,19 @@ namespace MovieDemo.Controllers
     {
         private readonly AppDbContext _context;
 
-        // Constructor: Inject the DB context to access your new SQL tables
+        // Constructor: Inject the DB context to access your SQL tables
         public MoviesController(AppDbContext context)
         {
             _context = context;
         }
 
+        // MAIN PAGE: Grid of movies with Search and Filter
         public async Task<IActionResult> IndexM(string search, int? genreId)
         {
             // 1. Fetch all genres from the database for the dropdown filter
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
 
-            // 2. Start the query and INCLUDE the Genres (the Junction Table logic)
+            // 2. Start the query and INCLUDE the Genres
             var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
 
             // 3. Apply Text Search (Title or Director)
@@ -48,6 +49,23 @@ namespace MovieDemo.Controllers
             ViewBag.SelectedGenre = genreId;
 
             return View(movies);
+        }
+
+        // NEW DETAILS PAGE: Shows all info for one specific movie
+        public async Task<IActionResult> Details(int id)
+        {
+            // Find the movie by ID and include its Genres for the list
+            var movie = await _context.Movies
+                .Include(m => m.Genres)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            // If the movie doesn't exist (e.g. someone types a wrong ID in the URL), show 404
+            if (movie == null)
+            {
+                return NotFound();
+            }
+
+            return View(movie);
         }
     }
 }
