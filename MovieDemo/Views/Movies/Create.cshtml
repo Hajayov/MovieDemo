@@ -1,0 +1,98 @@
+﻿@model MovieDemo.Models.Movie
+
+@{
+    ViewData["Title"] = "Add New Movie";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Add a New Movie to Library</h2>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="Title" class="form-label fw-bold"></label>
+                                    <input asp-for="Title" class="form-control" placeholder="e.g. Inception" required />
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label asp-for="Director" class="form-label fw-bold"></label>
+                                    <input asp-for="Director" class="form-control" placeholder="e.g. Christopher Nolan" />
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label asp-for="ReleaseDate" class="form-label fw-bold">Release Date</label>
+                                    <input asp-for="ReleaseDate" class="form-control" placeholder="e.g. 2010-07-16" />
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label asp-for="Runtime" class="form-label fw-bold">Runtime (Minutes)</label>
+                                    <input asp-for="Runtime" type="number" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="PosterUrl" class="form-label fw-bold">Poster Filename/URL</label>
+                                    <input asp-for="PosterUrl" class="form-control" placeholder="e.g. 9wlYJy01XgvIhdf651FgyJkau07.jpg" />
+                                    <small class="text-muted">Just the filename from TMDB, or a full URL.</small>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label asp-for="Summary" class="form-label fw-bold"></label>
+                                    <textarea asp-for="Summary" class="form-control" rows="5"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="form-group mb-4">
+                            <label class="form-label fw-bold d-block">Select Categories:</label>
+                            <div class="d-flex flex-wrap gap-3 p-3 border rounded bg-light">
+                                @if (ViewBag.Genres != null)
+                                {
+                                    foreach (var genre in ViewBag.Genres)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="selectedGenres" value="@genre.Id" id="genre_@genre.Id">
+                                            <label class="form-check-label" for="genre_@genre.Id">
+                                                @genre.Name
+                                            </label>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="IndexM" class="btn btn-secondary">Back to List</a>
+                            <button type="submit" class="btn btn-success px-5">Save Movie</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom styling for the genre box */
+    .form-check {
+        min-width: 120px;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+</style>

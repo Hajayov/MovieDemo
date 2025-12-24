@@ -11,22 +11,18 @@ namespace MovieDemo.Controllers
     {
         private readonly AppDbContext _context;
 
-        // Constructor: Inject the DB context to access your SQL tables
         public MoviesController(AppDbContext context)
         {
             _context = context;
         }
 
-        // MAIN PAGE: Grid of movies with Search and Filter
+        // --- EXISTING: USER SIDE ---
+
         public async Task<IActionResult> IndexM(string search, int? genreId)
         {
-            // 1. Fetch all genres from the database for the dropdown filter
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
-
-            // 2. Start the query and INCLUDE the Genres
             var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
 
-            // 3. Apply Text Search (Title or Director)
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.ToLower();
@@ -35,36 +31,68 @@ namespace MovieDemo.Controllers
                     m.Director.ToLower().Contains(search));
             }
 
-            // 4. Apply Category Filter (Many-to-Many filtering)
             if (genreId.HasValue)
             {
                 moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => g.Id == genreId));
             }
 
-            // 5. Execute the final combined query
             var movies = await moviesQuery.ToListAsync();
-
-            // Keep track of current search/filter for the View
             ViewBag.Search = search;
             ViewBag.SelectedGenre = genreId;
 
             return View(movies);
         }
 
-        // NEW DETAILS PAGE: Shows all info for one specific movie
         public async Task<IActionResult> Details(int id)
         {
-            // Find the movie by ID and include its Genres for the list
             var movie = await _context.Movies
                 .Include(m => m.Genres)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            // If the movie doesn't exist (e.g. someone types a wrong ID in the URL), show 404
-            if (movie == null)
+            if (movie == null) return NotFound();
+
+            return View(movie);
+        }
+
+        // --- NEW: ADMIN SIDE (CREATE MOVIE) ---
+
+        // 1. GET: Show the "Add Movie" Form
+        public async Task<IActionResult> Create()
+        {
+            // We fetch the genres so you can show checkboxes in the View
+            ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
+            return View();
+        }
+
+        // 2. POST: Save the new movie to the Database
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(Movie movie, int[] selectedGenres)
+        {
+            if (ModelState.IsValid)
             {
-                return NotFound();
+                // Link the selected Genres to the Movie object
+                if (selectedGenres != null)
+                {
+                    foreach (var genreId in selectedGenres)
+                    {
+                        var genre = await _context.Genres.FindAsync(genreId);
+                        if (genre != null)
+                        {
+                            movie.Genres.Add(genre);
+                        }
+                    }
+                }
+
+                _context.Add(movie);
+                await _context.SaveChangesAsync();
+
+                // After saving, go back to the main list
+                return RedirectToAction(nameof(IndexM));
             }
 
+            // If something failed, reload genres and show the form again with errors
+            ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
             return View(movie);
         }
     }
