@@ -1,5 +1,67 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model MovieDemo.Models.Movie
+
 @{
+    ViewData["Title"] = Model.Title;
 }
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4 text-center mb-4">
+            @{
+                var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
+                ? "https://via.placeholder.com/500x750?text=No+Poster"
+                : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w500" + Model.PosterUrl);
+            }
+            <img src="@posterSrc" class="img-fluid rounded shadow-lg border" alt="@Model.Title Poster" style="max-height: 550px;">
+        </div>
+
+        <div class="col-md-8">
+            <h1 class="display-4 fw-bold">@Model.Title</h1>
+
+            <div class="d-flex flex-wrap gap-2 my-3">
+                @foreach (var genre in Model.Genres)
+                {
+                    <span class="badge bg-primary fs-6">@genre.Name</span>
+                }
+            </div>
+
+            <hr />
+
+            <div class="row mb-4">
+                <div class="col-sm-4">
+                    <p class="text-muted mb-0">Director</p>
+                    <p class="fw-bold fs-5">@Model.Director</p>
+                </div>
+                <div class="col-sm-4">
+                    <p class="text-muted mb-0">Release Date</p>
+                    <p class="fw-bold fs-5">@Model.ReleaseDate.("MMMM dd, yyyy")</p>
+                </div>
+                <div class="col-sm-4">
+                    <p class="text-muted mb-0">Runtime</p>
+                    <p class="fw-bold fs-5">@Model.Runtime min</p>
+                </div>
+            </div>
+
+            <h4 class="fw-bold">Summary</h4>
+            <p class="lead text-secondary" style="line-height: 1.8;">
+                @Model.Summary
+            </p>
+
+            <div class="mt-5 pt-3 border-top">
+                <a asp-action="Manage" class="btn btn-outline-secondary me-2">Back to Manager</a>
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning px-4">Edit Movie</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        padding: 0.6em 1em;
+        border-radius: 50px;
+    }
+</style>

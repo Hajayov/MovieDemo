@@ -1,0 +1,99 @@
+﻿@model IEnumerable<MovieDemo.Models.Movie>
+
+@{
+    ViewData["Title"] = "Manage Library";
+}
+
+<div class="container-fluid mt-4 px-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary">Movie Manager</h1>
+        <a asp-action="Create" class="btn btn-success btn-lg shadow-sm">
+            <i class="bi bi-plus-circle"></i> + Add New Movie
+        </a>
+    </div>
+
+    <div class="card shadow border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 80px;">Poster</th>
+                        <th>Title</th>
+                        <th>Director</th>
+                        <th>Genres</th>
+                        <th class="text-center">Runtime</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var movie in Model)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                                {
+                                    // Use TMDB logic: if it doesn't start with http, it's an ID
+                                    var posterSrc = movie.PosterUrl.StartsWith("http")
+                                    ? movie.PosterUrl
+                                    : "https://image.tmdb.org/t/p/w92" + movie.PosterUrl;
+
+                                    <img src="@posterSrc" alt="Poster" class="rounded shadow-sm" style="width: 60px;" />
+                                }
+                                else
+                                {
+                                    <div class="bg-light text-center rounded" style="width: 60px; height: 90px; line-height: 90px;">
+                                        <small class="text-muted">No Image</small>
+                                    </div>
+                                }
+                            </td>
+                            <td class="fw-bold text-dark">@movie.Title</td>
+                            <td>@movie.Director</td>
+                            <td>
+                                @foreach (var genre in movie.Genres)
+                                {
+                                    <span class="badge bg-info text-dark me-1">@genre.Name</span>
+                                }
+                            </td>
+                            <td class="text-center">@movie.Runtime min</td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <a asp-action="Edit" asp-route-id="@movie.Id" class="btn btn-outline-warning btn-sm">
+                                        Edit
+                                    </a>
+                                    <a asp-action="Details" asp-route-id="@movie.Id" class="btn btn-outline-secondary btn-sm">
+                                        View
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@movie.Id" class="btn btn-outline-danger btn-sm">
+                                        Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a asp-action="IndexM" class="btn btn-link text-decoration-none">← Back to Gallery View</a>
+    </div>
+</div>
+
+<style>
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,.03);
+    }
+
+    .badge {
+        font-weight: 500;
+        font-size: 0.8rem;
+    }
+
+    .table thead th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+</style>
