@@ -1,0 +1,93 @@
+﻿@model MovieDemo.Models.User
+
+@{
+    ViewData["Title"] = "Join the Network";
+}
+
+<div class="login-page-wrapper">
+    <div class="container">
+        <div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+            <div class="col-md-5">
+                <div class="card login-card shadow-lg">
+                    <div class="card-body p-5 text-white">
+                        <div class="text-center mb-4">
+                            <h2 class="fw-bold text-warning mb-0" style="letter-spacing: 2px; font-size: 1.8rem;">HAJAYOV</h2>
+                            <h6 class="text-light fw-light mb-3" style="letter-spacing: 4px; font-size: 0.8rem;">MOVIES NETWORK</h6>
+                            <h5 class="text-light opacity-75 mt-4">Join the Network</h5>
+                        </div>
+
+                        <form asp-action="Register" method="post">
+                            <div asp-validation-summary="All" class="text-danger small mb-3 fw-bold"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="Email" class="form-label text-light small opacity-75">Email Address</label>
+                                <input asp-for="Email" class="form-control glass-input" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Password" class="form-label text-light small opacity-75">Password</label>
+                                <input asp-for="Password" type="password" class="form-control glass-input" required />
+                            </div>
+
+                            @* Hidden field to default role to User *@
+                            <input type="hidden" asp-for="Role" value="User" />
+
+                            <button type="submit" class="btn btn-outline-warning w-100 fw-bold py-2 mb-3 shadow">REGISTER</button>
+                        </form>
+
+                        <div class="text-center">
+                            <p class="text-light small opacity-75">Already have a profile? 
+                                <a asp-action="Login" class="text-info text-decoration-none fw-bold">Sign In here</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* This section fixes the "White Background" issue */
+    .login-page-wrapper {
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%;
+        /* Dark overlay + Movie Theater Background */
+        background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
+                    url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+        background-size: cover; 
+        background-position: center; 
+        z-index: -1;
+        display: flex; 
+        align-items: center;
+    }
+
+    .login-card {
+        background: rgba(255, 255, 255, 0.08) !important;
+        backdrop-filter: blur(15px); 
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1) !important; 
+        border-radius: 20px;
+    }
+
+    .glass-input {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important; 
+        color: white !important;
+    }
+
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-color: #ffc107 !important; 
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+    }
+
+    /* Prevents the main layout from messing up the full-screen view */
+    body { 
+        overflow: hidden; 
+        background-color: #000; 
+    }
+</style>

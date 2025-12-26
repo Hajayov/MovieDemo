@@ -2,54 +2,69 @@
 
 @{
     ViewData["Title"] = Model.Title;
+    // Check where the user came from (Default to Home if nothing is sent)
+    var returnUrl = Context.Request.Query["returnUrl"].ToString();
 }
 
 <div class="container mt-5">
-    <div class="row">
-        <div class="col-md-4 text-center mb-4">
+    <div class="row bg-dark text-white rounded-4 shadow-lg overflow-hidden border border-secondary">
+        <div class="col-md-5 p-0">
             @{
                 var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
-                ? "https://via.placeholder.com/500x750?text=No+Poster"
-                : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w500" + Model.PosterUrl);
+                    ? "https://via.placeholder.com/500x750?text=No+Poster"
+                    : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w780" + Model.PosterUrl);
             }
-            <img src="@posterSrc" class="img-fluid rounded shadow-lg border" alt="@Model.Title Poster" style="max-height: 550px;">
+            <img src="@posterSrc" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="@Model.Title">
         </div>
 
-        <div class="col-md-8">
-            <h1 class="display-4 fw-bold">@Model.Title</h1>
+        <div class="col-md-7 p-5 d-flex flex-column justify-content-center">
+            <h1 class="display-3 fw-bold mb-2">@Model.Title</h1>
 
-            <div class="d-flex flex-wrap gap-2 my-3">
+            <div class="mb-4">
                 @foreach (var genre in Model.Genres)
                 {
-                    <span class="badge bg-primary fs-6">@genre.Name</span>
+                        <span class="badge rounded-pill bg-warning text-dark me-1 px-3 py-2">@genre.Name</span>
                 }
             </div>
 
-            <hr />
+            <p class="lead text-secondary mb-4" style="line-height: 1.8;">@Model.Summary</p>
 
-            <div class="row mb-4">
-                <div class="col-sm-4">
-                    <p class="text-muted mb-0">Director</p>
-                    <p class="fw-bold fs-5">@Model.Director</p>
+            <div class="row border-top border-secondary pt-4 mb-5">
+                <div class="col-6">
+                    <small class="text-muted d-block uppercase">Director</small>
+                    <span class="fs-5 fw-bold text-info">@Model.Director</span>
                 </div>
-                <div class="col-sm-4">
-                    <p class="text-muted mb-0">Release Date</p>
-                    <p class="fw-bold fs-5">@Model.ReleaseDate.("MMMM dd, yyyy")</p>
+                <div class="col-3">
+                    <small class="text-muted d-block">Release Date</small>
+                    <span class="fs-5">@Model.ReleaseDate</span>
                 </div>
-                <div class="col-sm-4">
-                    <p class="text-muted mb-0">Runtime</p>
-                    <p class="fw-bold fs-5">@Model.Runtime min</p>
+                <div class="col-3">
+                    <small class="text-muted d-block">Runtime</small>
+                    <span class="fs-5">@Model.Runtime min</span>
                 </div>
             </div>
 
-            <h4 class="fw-bold">Summary</h4>
-            <p class="lead text-secondary" style="line-height: 1.8;">
-                @Model.Summary
-            </p>
+            <div class="mt-auto d-flex gap-3">
+                @if (returnUrl == "Manage")
+                {
+                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-2">
+                            <i class="bi bi-arrow-left"></i> Back to Manager
+                        </a>
+                }
+                else
+                {
+                        <a asp-action="IndexM" class="btn btn-outline-warning px-4 py-2">
+                            <i class="bi bi-house"></i> Back to Home
+                        </a>
+                }
 
-            <div class="mt-5 pt-3 border-top">
-                <a asp-action="Manage" class="btn btn-outline-secondary me-2">Back to Manager</a>
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning px-4">Edit Movie</a>
+                @* If user came from Manage, they are an admin, so show the Edit button *@
+                @if (returnUrl == "Manage")
+                {
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info px-4 py-2 text-dark fw-bold">
+                            <i class="bi bi-pencil-square"></i> Edit Movie
+                        </a>
+                }
             </div>
         </div>
     </div>
@@ -57,11 +72,11 @@
 
 <style>
     body {
-        background-color: #f8f9fa;
+        background-color: #0f0f0f; /* Match the Network background */
     }
-
-    .badge {
-        padding: 0.6em 1em;
-        border-radius: 50px;
+    .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.75rem;
     }
 </style>

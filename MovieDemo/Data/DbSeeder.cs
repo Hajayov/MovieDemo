@@ -63,7 +63,7 @@ namespace MovieDemo.Data
                             Summary = csv.GetField("overview") ?? "",
                             Director = csv.GetField("director") ?? "Unknown",
                             PosterUrl = finalPosterUrl,
-                            ReleaseDate = DateTime.Parse(csv.GetField("release_date")),
+                            ReleaseDate = csv.GetField("release_date"),
                         }; 
 
                         if (int.TryParse(csv.GetField("runtime"), out int r)) { movie.Runtime = r; }

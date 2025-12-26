@@ -2,16 +2,15 @@
 {
     public class Movie
     {
-        public int Id { get; set; } // Database primary key
-        public string Title { get; set; }
-        public string Summary { get; set; }
-        public string Director { get; set; }
-        public string PosterUrl { get; set; }
-        public DateTime? ReleaseDate { get; set; }
-        public int Runtime { get; set; }
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty; // Required
+        public string? Summary { get; set; }
+        public string? Director { get; set; }
+        public string? PosterUrl { get; set; }
+        public string? ReleaseDate { get; set; }
+        public int? Runtime { get; set; }
 
-        // This is the "Connecting" part. EF Core creates the 
-        // junction table automatically in the background.
-        public List<Genre> Genres { get; set; } = new();
+        // Initialized as an empty list to prevent null errors
+        public List<Genre> Genres { get; set; } = new List<Genre>();
     }
 }

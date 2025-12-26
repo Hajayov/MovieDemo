@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MovieDemo.Data;
 using MovieDemo.Models;
+using Microsoft.AspNetCore.Authorization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,12 +18,14 @@ namespace MovieDemo.Controllers
         }
 
         // --- USER SIDE: GALLERY & DETAILS ---
-
         public async Task<IActionResult> IndexM(string search, int? genreId)
         {
+            // Get genres for the filter menu
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
+
             var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
 
+            // Filter by Search
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.ToLower();
@@ -31,12 +34,14 @@ namespace MovieDemo.Controllers
                     m.Director.ToLower().Contains(search));
             }
 
+            // Filter by Category
             if (genreId.HasValue)
             {
                 moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => g.Id == genreId));
             }
 
             var movies = await moviesQuery.ToListAsync();
+
             ViewBag.Search = search;
             ViewBag.SelectedGenre = genreId;
 
@@ -50,13 +55,11 @@ namespace MovieDemo.Controllers
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (movie == null) return NotFound();
-
             return View(movie);
         }
 
         // --- ADMIN SIDE: MANAGE TABLE ---
-
-        // This action feeds the Manager Table view
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Manage()
         {
             var movies = await _context.Movies.Include(m => m.Genres).ToListAsync();
@@ -64,7 +67,7 @@ namespace MovieDemo.Controllers
         }
 
         // --- ADMIN SIDE: CREATE ---
-
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create()
         {
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
@@ -72,9 +75,13 @@ namespace MovieDemo.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Movie movie, int[] selectedGenres)
         {
+            // Essential for many-to-many saving
+            ModelState.Remove("Genres");
+
             if (ModelState.IsValid)
             {
                 if (selectedGenres != null)
@@ -88,7 +95,7 @@ namespace MovieDemo.Controllers
 
                 _context.Add(movie);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Manage)); // Redirect to Manager after creating
+                return RedirectToAction(nameof(Manage));
             }
 
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
@@ -96,7 +103,7 @@ namespace MovieDemo.Controllers
         }
 
         // --- ADMIN SIDE: EDIT ---
-
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(int id)
         {
             var movie = await _context.Movies
@@ -110,10 +117,14 @@ namespace MovieDemo.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Movie movie, int[] selectedGenres)
         {
             if (id != movie.Id) return NotFound();
+
+            // Essential: Ignores validation mismatch on the Genres object list
+            ModelState.Remove("Genres");
 
             if (ModelState.IsValid)
             {
@@ -125,6 +136,7 @@ namespace MovieDemo.Controllers
 
                     if (movieToUpdate == null) return NotFound();
 
+                    // Update Properties
                     movieToUpdate.Title = movie.Title;
                     movieToUpdate.Director = movie.Director;
                     movieToUpdate.Summary = movie.Summary;
@@ -132,6 +144,7 @@ namespace MovieDemo.Controllers
                     movieToUpdate.ReleaseDate = movie.ReleaseDate;
                     movieToUpdate.Runtime = movie.Runtime;
 
+                    // Update Many-to-Many relationship
                     movieToUpdate.Genres.Clear();
                     if (selectedGenres != null)
                     {
@@ -150,7 +163,7 @@ namespace MovieDemo.Controllers
                     if (!_context.Movies.Any(e => e.Id == movie.Id)) return NotFound();
                     else throw;
                 }
-                return RedirectToAction(nameof(Manage)); // Redirect to Manager after editing
+                return RedirectToAction(nameof(Manage));
             }
 
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
@@ -158,8 +171,7 @@ namespace MovieDemo.Controllers
         }
 
         // --- ADMIN SIDE: DELETE ---
-
-        // GET: Show confirmation page
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var movie = await _context.Movies
@@ -167,12 +179,11 @@ namespace MovieDemo.Controllers
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (movie == null) return NotFound();
-
             return View(movie);
         }
 
-        // POST: Actually remove the movie
         [HttpPost, ActionName("Delete")]
+        [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
@@ -182,7 +193,7 @@ namespace MovieDemo.Controllers
                 _context.Movies.Remove(movie);
                 await _context.SaveChangesAsync();
             }
-            return RedirectToAction(nameof(Manage)); // Redirect to Manager after deleting
+            return RedirectToAction(nameof(Manage));
         }
     }
 }

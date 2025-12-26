@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="movies1.csv" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="Models\Movie.cs" />
   </ItemGroup>
 

@@ -1,99 +1,141 @@
 ﻿@model IEnumerable<MovieDemo.Models.Movie>
 
 @{
-    ViewData["Title"] = "Manage Library";
+    ViewData["Title"] = "Network Library Management";
 }
 
 <div class="container-fluid mt-4 px-5">
+    @* Header Section *@
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="display-5 fw-bold text-primary">Movie Manager</h1>
-        <a asp-action="Create" class="btn btn-success btn-lg shadow-sm">
-            <i class="bi bi-plus-circle"></i> + Add New Movie
+        <div>
+            <h1 class="display-6 fw-bold text-warning mb-0" style="letter-spacing: 1px;">LIBRARY CONTROL</h1>
+            <p class="text-secondary small">Manage the Hajayov Network digital assets</p>
+        </div>
+        <a asp-action="Create" class="btn btn-warning fw-bold px-4 py-2 shadow-sm">
+            <i class="bi bi-plus-lg me-2"></i>ADD NEW CONTENT
         </a>
     </div>
 
-    <div class="card shadow border-0">
+    @* Main Table Card *@
+    <div class="card glass-card border-0 shadow-lg">
         <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th style="width: 80px;">Poster</th>
-                        <th>Title</th>
-                        <th>Director</th>
-                        <th>Genres</th>
-                        <th class="text-center">Runtime</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var movie in Model)
-                    {
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead class="custom-thead">
                         <tr>
-                            <td>
-                                @if (!string.IsNullOrEmpty(movie.PosterUrl))
-                                {
-                                    // Use TMDB logic: if it doesn't start with http, it's an ID
-                                    var posterSrc = movie.PosterUrl.StartsWith("http")
-                                    ? movie.PosterUrl
-                                    : "https://image.tmdb.org/t/p/w92" + movie.PosterUrl;
-
-                                    <img src="@posterSrc" alt="Poster" class="rounded shadow-sm" style="width: 60px;" />
-                                }
-                                else
-                                {
-                                    <div class="bg-light text-center rounded" style="width: 60px; height: 90px; line-height: 90px;">
-                                        <small class="text-muted">No Image</small>
-                                    </div>
-                                }
-                            </td>
-                            <td class="fw-bold text-dark">@movie.Title</td>
-                            <td>@movie.Director</td>
-                            <td>
-                                @foreach (var genre in movie.Genres)
-                                {
-                                    <span class="badge bg-info text-dark me-1">@genre.Name</span>
-                                }
-                            </td>
-                            <td class="text-center">@movie.Runtime min</td>
-                            <td class="text-center">
-                                <div class="btn-group" role="group">
-                                    <a asp-action="Edit" asp-route-id="@movie.Id" class="btn btn-outline-warning btn-sm">
-                                        Edit
-                                    </a>
-                                    <a asp-action="Details" asp-route-id="@movie.Id" class="btn btn-outline-secondary btn-sm">
-                                        View
-                                    </a>
-                                    <a asp-action="Delete" asp-route-id="@movie.Id" class="btn btn-outline-danger btn-sm">
-                                        Delete
-                                    </a>
-                                </div>
-                            </td>
+                            <th class="ps-4" style="width: 100px;">Asset</th>
+                            <th>Title</th>
+                            <th>Director</th>
+                            <th>Genres</th>
+                            <th class="text-center">Runtime</th>
+                            <th class="text-center pe-4">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var movie in Model)
+                        {
+                                <tr class="admin-row">
+                                    <td class="ps-4">
+                                    @{
+                                        var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
+                                            ? "https://via.placeholder.com/92x138?text=No+Image"
+                                            : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + movie.PosterUrl);
+                                    }
+                                        <img src="@posterSrc" alt="Poster" class="rounded shadow-sm border border-secondary" style="width: 50px; aspect-ratio: 2/3; object-fit: cover;" />
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-light">@movie.Title</span>
+                                    </td>
+                                    <td class="text-secondary">@movie.Director</td>
+                                    <td>
+                                    @foreach (var genre in movie.Genres)
+                                    {
+                                                <span class="badge rounded-pill bg-dark text-info border border-info border-opacity-25 me-1" style="font-size: 0.7rem;">
+                                            @genre.Name
+                                                </span>
+                                    }
+                                    </td>
+                                    <td class="text-center text-secondary small">@movie.Runtime min</td>
+                                    <td class="text-center pe-4">
+                                        <div class="btn-group btn-group-sm rounded shadow-sm">
+                                            <a asp-action="Edit" asp-route-id="@movie.Id" class="btn btn-outline-warning" title="Edit Content">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
+                                            <a asp-action="Details" asp-route-id="@movie.Id" asp-route-returnUrl="Manage" class="btn btn-outline-light" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@movie.Id" class="btn btn-outline-danger" title="Remove Asset">
+                                                <i class="bi bi-trash3"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <div class="mt-4">
-        <a asp-action="IndexM" class="btn btn-link text-decoration-none">← Back to Gallery View</a>
+        <a asp-action="IndexM" class="text-warning text-decoration-none fw-bold small">
+            <i class="bi bi-arrow-left me-1"></i> RETURN TO GALLERY
+        </a>
     </div>
 </div>
 
+@* STYLING TO MATCH THE NETWORK THEME *@
 <style>
-    .table-hover tbody tr:hover {
-        background-color: rgba(0,0,0,.03);
+    body {
+        background-color: #0c0c0c;
+        color: #e0e0e0;
     }
 
-    .badge {
-        font-weight: 500;
-        font-size: 0.8rem;
+    /* Glass Effect Card */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 15px;
+        overflow: hidden;
     }
 
-    .table thead th {
+    /* Professional Table Header */
+    .custom-thead {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-bottom: 2px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .custom-thead th {
+        color: #ffc107 !important;
         font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        letter-spacing: 1.5px;
+        padding: 15px 10px;
     }
+
+    /* Hover effects for rows */
+    .admin-row {
+        transition: background-color 0.2s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    /* Action Buttons styling */
+    .btn-group .btn {
+        padding: 6px 12px;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-outline-warning:hover { color: #000; }
+
+    /* Scrollbar for dark theme */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0c0c0c; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ffc107; }
 </style>

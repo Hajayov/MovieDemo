@@ -1,48 +1,148 @@
 ﻿@model IEnumerable<MovieDemo.Models.Movie>
 
-<h2 style="text-align:center; margin-bottom:20px;">Movie List</h2>
+@{
+    ViewData["Title"] = "Network Home";
+}
 
-<form method="get" style="text-align:center; margin-bottom:20px;">
-    @* Search Input *@
-    <input type="text" name="search" placeholder="Search by title or director" value="@ViewBag.Search" style="padding:5px; width:250px;" />
+<div class="container-fluid px-4 mt-3">
+    @* --- CINEMATIC SEARCH SECTION --- *@
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-light mb-4" style="letter-spacing: 1px;">Explore the Network</h1>
 
-    @* Category Filter Dropdown *@
-    <select name="genreId" style="padding:5px; margin-left:10px;">
-        <option value="">All Categories</option>
+        <div class="search-glass-container mx-auto p-1" style="max-width: 600px;">
+            <form method="get" asp-action="IndexM">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0 text-secondary ps-4">
+                        <i class="bi bi-search" style="font-size: 1.2rem;"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control bg-transparent text-white border-0 glass-input py-3" 
+                           placeholder="Search titles, directors..." value="@ViewBag.Search" autocomplete="off" />
+
+                    @* Hidden field to keep genre filter context *@
+                    <input type="hidden" name="genreId" value="@ViewBag.SelectedGenre" />
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* --- GENRE PILLS SECTION --- *@
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-5">
+        <a asp-action="IndexM" asp-route-search="@ViewBag.Search" 
+           class="btn @(ViewBag.SelectedGenre == null ? "btn-warning text-dark" : "btn-outline-light") rounded-pill px-4 fw-bold">
+            All Content
+        </a>
+
         @if (ViewBag.Genres != null)
         {
             @foreach (var genre in (IEnumerable<MovieDemo.Models.Genre>)ViewBag.Genres)
             {
-                        <option value="@genre.Id" selected="@(ViewBag.SelectedGenre != null && (int)ViewBag.SelectedGenre == genre.Id)">
+                bool isSelected = ViewBag.SelectedGenre != null && (int)ViewBag.SelectedGenre == genre.Id;
+                        <a asp-action="IndexM" asp-route-genreId="@genre.Id" asp-route-search="@ViewBag.Search"
+                           class="btn @(isSelected ? "btn-warning text-dark" : "btn-outline-light") rounded-pill px-4 fw-bold">
                     @genre.Name
-                        </option>
+                        </a>
             }
         }
-    </select>
+    </div>
 
-    <button type="submit" style="padding:5px 10px; margin-left:10px;">Filter</button>
-</form>
+    @* --- MOVIE GRID --- *@
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-4">
+        @foreach (var movie in Model)
+        {
+                <div class="col">
+                    <a asp-action="Details" asp-route-id="@movie.Id" class="text-decoration-none">
+                        <div class="card h-100 bg-transparent border-0 movie-card shadow">
+                            <div class="poster-container position-relative overflow-hidden rounded-3">
+                            @{
+                                var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
+                                    ? "https://via.placeholder.com/342x513?text=No+Image"
+                                    : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
+                            }
+                                <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title">
 
-<div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center; max-height:80vh; overflow-y:auto; padding:10px; border:1px solid #ccc; border-radius:10px;">
-    @foreach (var movie in Model)
-    {
-            <div style="width:200px; border:1px solid #ccc; padding:10px; text-align:center; background:#f7f7f7; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
-            @* Poster Image *@
-                <img src="@movie.PosterUrl" style="width:100%; height:300px; object-fit:cover; border-radius:8px;" alt="@movie.Title" />
+                                <div class="card-img-overlay d-flex align-items-end p-2 overlay-shadow">
+                                    <span class="badge bg-warning text-dark shadow-sm">View Details</span>
+                                </div>
+                            </div>
 
-                <h3 style="margin:10px 0 5px 0;">@movie.Title</h3>
-
-                <p style="margin: 5px 0;"><b>Director:</b> @movie.Director</p>
-
-            @* Genres Display *@
-                <p style="font-size:0.9em; color:#007bff; margin: 5px 0;">
-                    <b>Genres:</b> @string.Join(", ", movie.Genres.Select(g => g.Name))
-                </p>
-
-            @* Summary Display *@
-                <p style="font-size:0.85em; color:#333; height: 60px; overflow: hidden; text-overflow: ellipsis;">
-                @movie.Summary
-                </p>
-            </div>
-    }
+                            <div class="card-body px-1 py-3">
+                                <h6 class="card-title text-light fw-bold mb-1 text-truncate">@movie.Title</h6>
+                                <p class="card-text small text-secondary">
+                                @string.Join(" • ", movie.Genres.Select(g => g.Name))
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+        }
+    </div>
 </div>
+
+@* --- CUSTOM STYLING --- *@
+<style>
+    body {
+        background-color: #0c0c0c;
+    }
+
+    /* Modern Pill Search bar with Glass effect */
+    .search-glass-container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 50px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .search-glass-container:focus-within {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 193, 7, 0.6);
+        box-shadow: 0 0 25px rgba(255, 193, 7, 0.15);
+    }
+
+    .glass-input {
+        box-shadow: none !important;
+        font-size: 1.1rem;
+        color: white !important;
+    }
+
+    .glass-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Card Animation */
+    .movie-card {
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .movie-card:hover {
+        transform: scale(1.08);
+        z-index: 10;
+    }
+
+    .poster-container {
+        aspect-ratio: 2/3;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .overlay-shadow {
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .movie-card:hover .overlay-shadow {
+        opacity: 1;
+    }
+
+    /* Pills */
+    .btn-outline-light {
+        border-color: rgba(255,255,255,0.15);
+        background-color: rgba(255,255,255,0.03);
+    }
+
+    .btn-outline-light:hover {
+        background-color: white;
+        color: black;
+    }
+</style>
