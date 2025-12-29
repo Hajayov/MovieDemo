@@ -7,7 +7,7 @@
 <div class="login-page-wrapper">
     <div class="container">
         <div class="row justify-content-center align-items-center" style="min-height: 80vh;">
-            <div class="col-md-5">
+            <div class="col-md-5" style="z-index: 10;">
                 <div class="card login-card shadow-lg">
                     <div class="card-body p-5 text-white">
                         <div class="text-center mb-4">
@@ -33,7 +33,8 @@
                         </form>
 
                         <div class="text-center">
-                            <p class="text-light small opacity-75">New to the Network? 
+                            <p class="text-light small opacity-75">
+                                New to the Network?
                                 <a asp-action="Register" class="text-info text-decoration-none fw-bold">Create an Account</a>
                             </p>
                         </div>
@@ -46,24 +47,51 @@
 
 <style>
     .login-page-wrapper {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
-                    url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
-        background-size: cover; background-position: center; z-index: -1;
-        display: flex; align-items: center;
+        position: relative;
+        min-height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        background-color: #000;
     }
+
+        .login-page-wrapper::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+
     .login-card {
         background: rgba(255, 255, 255, 0.08) !important;
-        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 20px;
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 20px;
+        position: relative;
+        z-index: 5;
     }
+
     .glass-input {
         background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important; color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
     }
-    .glass-input:focus {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border-color: #ffc107 !important; box-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: #ffc107 !important;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+        }
+
+    body {
+        background-color: #000;
+        overflow-x: hidden;
     }
-    body { overflow: hidden; }
 </style>
