@@ -18,14 +18,20 @@ namespace MovieDemo.Controllers
         }
 
         // --- USER SIDE: GALLERY & DETAILS ---
-        public async Task<IActionResult> IndexM(string search, int? genreId)
+        // Updated to accept an array for multiple genre selection
+        public async Task<IActionResult> IndexM(string search, int[] selectedGenres)
         {
-            // Get genres for the filter menu
-            ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
+            // 1. Get genres sorted by popularity (most movies first)
+            var genres = await _context.Genres
+                .Include(g => g.Movies)
+                .OrderByDescending(g => g.Movies.Count)
+                .ToListAsync();
+
+            ViewBag.Genres = genres;
 
             var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
 
-            // Filter by Search
+            // 2. Filter by Search
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.ToLower();
@@ -34,16 +40,18 @@ namespace MovieDemo.Controllers
                     m.Director.ToLower().Contains(search));
             }
 
-            // Filter by Category
-            if (genreId.HasValue)
+            // 3. Filter by Multiple Categories
+            if (selectedGenres != null && selectedGenres.Length > 0)
             {
-                moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => g.Id == genreId));
+                // Finds movies that have at least one of the selected genres
+                moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => selectedGenres.Contains(g.Id)));
             }
 
             var movies = await moviesQuery.ToListAsync();
 
             ViewBag.Search = search;
-            ViewBag.SelectedGenre = genreId;
+            // Ensure we don't pass a null array to the view
+            ViewBag.SelectedGenres = selectedGenres ?? new int[0];
 
             return View(movies);
         }
@@ -79,7 +87,6 @@ namespace MovieDemo.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Movie movie, int[] selectedGenres)
         {
-            // Essential for many-to-many saving
             ModelState.Remove("Genres");
 
             if (ModelState.IsValid)
@@ -123,7 +130,6 @@ namespace MovieDemo.Controllers
         {
             if (id != movie.Id) return NotFound();
 
-            // Essential: Ignores validation mismatch on the Genres object list
             ModelState.Remove("Genres");
 
             if (ModelState.IsValid)
@@ -136,7 +142,6 @@ namespace MovieDemo.Controllers
 
                     if (movieToUpdate == null) return NotFound();
 
-                    // Update Properties
                     movieToUpdate.Title = movie.Title;
                     movieToUpdate.Director = movie.Director;
                     movieToUpdate.Summary = movie.Summary;
@@ -144,7 +149,6 @@ namespace MovieDemo.Controllers
                     movieToUpdate.ReleaseDate = movie.ReleaseDate;
                     movieToUpdate.Runtime = movie.Runtime;
 
-                    // Update Many-to-Many relationship
                     movieToUpdate.Genres.Clear();
                     if (selectedGenres != null)
                     {
