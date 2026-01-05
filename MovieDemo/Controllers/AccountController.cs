@@ -19,7 +19,6 @@ namespace MovieDemo.Controllers
             _context = context;
         }
 
-        // --- REGISTRATION ---
         [HttpGet]
         public IActionResult Register() => View();
 
@@ -31,7 +30,7 @@ namespace MovieDemo.Controllers
                 var exists = await _context.Users.AnyAsync(u => u.Email == user.Email);
                 if (exists)
                 {
-                    ModelState.AddModelError("", "This email is already registered on the network.");
+                    ModelState.AddModelError("", "This email is already registered.");
                     return View(user);
                 }
 
@@ -44,7 +43,6 @@ namespace MovieDemo.Controllers
             return View(user);
         }
 
-        // --- LOGIN ---
         [HttpGet]
         public IActionResult Login() => View();
 
@@ -57,41 +55,31 @@ namespace MovieDemo.Controllers
                 return View();
             }
 
-            try
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email && u.Password == password);
+
+            if (user == null)
             {
-                // Attempt to find the user
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email == email && u.Password == password);
-
-                // If no user found, return the 'Invalid' error message
-                if (user == null)
-                {
-                    ModelState.AddModelError("", "Invalid email or password.");
-                    return View();
-                }
-
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.Email),
-                    new Claim(ClaimTypes.Role, user.Role ?? "User")
-                };
-
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity));
-
-                return RedirectToAction("IndexM", "Movies");
-            }
-            catch (Exception)
-            {
-                // User-friendly message instead of "Database Error"
                 ModelState.AddModelError("", "Invalid email or password.");
                 return View();
             }
+
+            // --- THE KEY FIX: Store both Email and ID in the Cookie ---
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Role, user.Role ?? "User")
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity));
+
+            return RedirectToAction("IndexM", "Movies");
         }
 
-        // --- LOGOUT ---
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

@@ -4,7 +4,10 @@
     {
         public int Id { get; set; }
         public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty; // In a real app, we'd hash this!
-        public string Role { get; set; } = "User"; // Default role is User
+        public string Password { get; set; } = string.Empty;
+        public string Role { get; set; } = "User";
+
+        // ADD THIS: Navigation property for the user's lists
+        public virtual ICollection<MovieList> MovieLists { get; set; } = new List<MovieList>();
     }
 }

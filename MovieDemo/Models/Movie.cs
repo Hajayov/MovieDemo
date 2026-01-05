@@ -3,14 +3,16 @@
     public class Movie
     {
         public int Id { get; set; }
-        public string Title { get; set; } = string.Empty; // Required
+        public string Title { get; set; } = string.Empty;
         public string? Summary { get; set; }
         public string? Director { get; set; }
         public string? PosterUrl { get; set; }
         public string? ReleaseDate { get; set; }
         public int? Runtime { get; set; }
 
-        // Initialized as an empty list to prevent null errors
         public List<Genre> Genres { get; set; } = new List<Genre>();
+
+        // ADD THIS: Connection to the List bridge table
+        public virtual ICollection<MovieListItem> ListItems { get; set; } = new List<MovieListItem>();
     }
 }

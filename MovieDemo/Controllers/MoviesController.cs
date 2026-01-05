@@ -17,11 +17,9 @@ namespace MovieDemo.Controllers
             _context = context;
         }
 
-        // --- USER SIDE: GALLERY & DETAILS ---
-        // Updated to accept an array for multiple genre selection
+        // --- USER SIDE: GALLERY ---
         public async Task<IActionResult> IndexM(string search, int[] selectedGenres)
         {
-            // 1. Get genres sorted by popularity (most movies first)
             var genres = await _context.Genres
                 .Include(g => g.Movies)
                 .OrderByDescending(g => g.Movies.Count)
@@ -29,9 +27,12 @@ namespace MovieDemo.Controllers
 
             ViewBag.Genres = genres;
 
-            var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
+            var moviesQuery = _context.Movies
+                .Include(m => m.Genres)
+                .Include(m => m.ListItems)
+                    .ThenInclude(li => li.MovieList)
+                .AsQueryable();
 
-            // 2. Filter by Search
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.ToLower();
@@ -40,41 +41,82 @@ namespace MovieDemo.Controllers
                     m.Director.ToLower().Contains(search));
             }
 
-            // 3. Filter by Multiple Categories
             if (selectedGenres != null && selectedGenres.Length > 0)
             {
-                // Finds movies that have at least one of the selected genres
                 moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => selectedGenres.Contains(g.Id)));
             }
 
             var movies = await moviesQuery.ToListAsync();
-
             ViewBag.Search = search;
-            // Ensure we don't pass a null array to the view
             ViewBag.SelectedGenres = selectedGenres ?? new int[0];
 
             return View(movies);
         }
 
-        public async Task<IActionResult> Details(int id)
+        // --- USER SIDE: MY LIBRARY ---
+        public async Task<IActionResult> MyLibrary()
         {
-            var movie = await _context.Movies
-                .Include(m => m.Genres)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            // FIX: Identify user via Identity instead of Session
+            var userEmail = User.Identity.Name;
+            if (string.IsNullOrEmpty(userEmail)) return RedirectToAction("Login", "Account");
 
-            if (movie == null) return NotFound();
-            return View(movie);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user == null) return RedirectToAction("Login", "Account");
+
+            var seenMovies = await _context.MovieListItems
+                .Include(li => li.Movie).ThenInclude(m => m.Genres)
+                .Where(li => li.MovieList.UserId == user.Id && li.MovieList.Title == "Seen Content")
+                .Select(li => li.Movie)
+                .ToListAsync();
+
+            return View(seenMovies);
         }
 
-        // --- ADMIN SIDE: MANAGE TABLE ---
+        // --- PREMIUM AJAX: TOGGLE SEEN STATUS ---
+        [HttpPost]
+        public async Task<IActionResult> ToggleSeen(int movieId)
+        {
+            // FIX: Identify user via Identity instead of Session
+            var userEmail = User.Identity.Name;
+            if (string.IsNullOrEmpty(userEmail)) return Unauthorized();
+
+            var user = await _context.Users
+                .Include(u => u.MovieLists)
+                .FirstOrDefaultAsync(u => u.Email == userEmail);
+
+            if (user == null) return Unauthorized();
+
+            var seenList = user.MovieLists.FirstOrDefault(l => l.IsSystemList && l.Title == "Seen Content");
+
+            if (seenList == null)
+            {
+                seenList = new MovieList { Title = "Seen Content", IsSystemList = true, UserId = user.Id };
+                _context.MovieLists.Add(seenList);
+                await _context.SaveChangesAsync();
+            }
+
+            var existingItem = await _context.MovieListItems
+                .FirstOrDefaultAsync(li => li.MovieListId == seenList.Id && li.MovieId == movieId);
+
+            if (existingItem != null) { _context.MovieListItems.Remove(existingItem); }
+            else { _context.MovieListItems.Add(new MovieListItem { MovieListId = seenList.Id, MovieId = movieId }); }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+
+        public async Task<IActionResult> Details(int id)
+        {
+            var movie = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
+            return movie == null ? NotFound() : View(movie);
+        }
+
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Manage()
         {
-            var movies = await _context.Movies.Include(m => m.Genres).ToListAsync();
-            return View(movies);
+            return View(await _context.Movies.Include(m => m.Genres).ToListAsync());
         }
 
-        // --- ADMIN SIDE: CREATE ---
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create()
         {
@@ -88,37 +130,29 @@ namespace MovieDemo.Controllers
         public async Task<IActionResult> Create(Movie movie, int[] selectedGenres)
         {
             ModelState.Remove("Genres");
-
             if (ModelState.IsValid)
             {
                 if (selectedGenres != null)
                 {
-                    foreach (var genreId in selectedGenres)
+                    foreach (var id in selectedGenres)
                     {
-                        var genre = await _context.Genres.FindAsync(genreId);
+                        var genre = await _context.Genres.FindAsync(id);
                         if (genre != null) movie.Genres.Add(genre);
                     }
                 }
-
                 _context.Add(movie);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Manage));
             }
-
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
             return View(movie);
         }
 
-        // --- ADMIN SIDE: EDIT ---
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(int id)
         {
-            var movie = await _context.Movies
-                .Include(m => m.Genres)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
+            var movie = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null) return NotFound();
-
             ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
             return View(movie);
         }
@@ -129,61 +163,39 @@ namespace MovieDemo.Controllers
         public async Task<IActionResult> Edit(int id, Movie movie, int[] selectedGenres)
         {
             if (id != movie.Id) return NotFound();
-
             ModelState.Remove("Genres");
-
             if (ModelState.IsValid)
             {
-                try
+                var movieToUpdate = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
+                if (movieToUpdate == null) return NotFound();
+
+                movieToUpdate.Title = movie.Title;
+                movieToUpdate.Director = movie.Director;
+                movieToUpdate.Summary = movie.Summary;
+                movieToUpdate.PosterUrl = movie.PosterUrl;
+                movieToUpdate.ReleaseDate = movie.ReleaseDate;
+                movieToUpdate.Runtime = movie.Runtime;
+
+                movieToUpdate.Genres.Clear();
+                if (selectedGenres != null)
                 {
-                    var movieToUpdate = await _context.Movies
-                        .Include(m => m.Genres)
-                        .FirstOrDefaultAsync(m => m.Id == id);
-
-                    if (movieToUpdate == null) return NotFound();
-
-                    movieToUpdate.Title = movie.Title;
-                    movieToUpdate.Director = movie.Director;
-                    movieToUpdate.Summary = movie.Summary;
-                    movieToUpdate.PosterUrl = movie.PosterUrl;
-                    movieToUpdate.ReleaseDate = movie.ReleaseDate;
-                    movieToUpdate.Runtime = movie.Runtime;
-
-                    movieToUpdate.Genres.Clear();
-                    if (selectedGenres != null)
+                    foreach (var gId in selectedGenres)
                     {
-                        foreach (var genreId in selectedGenres)
-                        {
-                            var genre = await _context.Genres.FindAsync(genreId);
-                            if (genre != null) movieToUpdate.Genres.Add(genre);
-                        }
+                        var genre = await _context.Genres.FindAsync(gId);
+                        if (genre != null) movieToUpdate.Genres.Add(genre);
                     }
-
-                    _context.Update(movieToUpdate);
-                    await _context.SaveChangesAsync();
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!_context.Movies.Any(e => e.Id == movie.Id)) return NotFound();
-                    else throw;
-                }
+                await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Manage));
             }
-
-            ViewBag.Genres = await _context.Genres.OrderBy(g => g.Name).ToListAsync();
             return View(movie);
         }
 
-        // --- ADMIN SIDE: DELETE ---
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var movie = await _context.Movies
-                .Include(m => m.Genres)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            if (movie == null) return NotFound();
-            return View(movie);
+            var movie = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
+            return movie == null ? NotFound() : View(movie);
         }
 
         [HttpPost, ActionName("Delete")]
@@ -192,11 +204,7 @@ namespace MovieDemo.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var movie = await _context.Movies.FindAsync(id);
-            if (movie != null)
-            {
-                _context.Movies.Remove(movie);
-                await _context.SaveChangesAsync();
-            }
+            if (movie != null) { _context.Movies.Remove(movie); await _context.SaveChangesAsync(); }
             return RedirectToAction(nameof(Manage));
         }
     }

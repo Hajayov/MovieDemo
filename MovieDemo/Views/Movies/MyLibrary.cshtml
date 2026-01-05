@@ -1,0 +1,85 @@
+﻿@model IEnumerable<MovieDemo.Models.Movie>
+
+@{
+    ViewData["Title"] = "My Library";
+}
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="text-white fw-bold">My Library</h1>
+            <p class="text-secondary">You have completed @Model.Count() movies</p>
+        </div>
+        <a asp-action="IndexM" class="btn btn-outline-warning rounded-pill">
+            <i class="bi bi-plus-lg"></i> Discover More
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 glass-card rounded-4">
+            <i class="bi bi-film text-secondary display-1"></i>
+            <h3 class="text-white mt-3">Your library is empty</h3>
+            <p class="text-secondary">Start marking movies as "Seen" to build your collection.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-4">
+            @foreach (var movie in Model)
+            {
+                <div class="col">
+                    <div class="card bg-transparent border-0 h-100 library-card">
+                        <div class="position-relative overflow-hidden rounded-3 shadow">
+                            <img src="@(movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl)"
+                                 class="card-img-top" alt="@movie.Title">
+
+                            @* Simple Remove Button *@
+                            <div class="position-absolute top-0 end-0 p-2">
+                                <button class="btn btn-danger btn-sm rounded-circle shadow"
+                                        onclick="removeFromLibrary(@movie.Id, this)">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="py-2">
+                            <h6 class="text-white mb-0 text-truncate">@movie.Title</h6>
+                            <small class="text-warning">Watched</small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .library-card img {
+        transition: 0.3s;
+        filter: grayscale(30%);
+    }
+
+    .library-card:hover img {
+        filter: grayscale(0%);
+        transform: scale(1.03);
+    }
+</style>
+
+<script>
+    async function removeFromLibrary(movieId, btn) {
+        if(!confirm("Remove from your seen list?")) return;
+
+        const response = await fetch(`/Movies/ToggleSeen?movieId=${movieId}`, { method: 'POST' });
+        if(response.ok) {
+            // Smoothly remove the card from UI
+            btn.closest('.col').fadeOut(300, function() { $(this).remove(); });
+            location.reload(); // Simple way to refresh the count and UI
+        }
+    }
+</script>

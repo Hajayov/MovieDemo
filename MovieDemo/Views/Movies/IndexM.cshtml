@@ -2,7 +2,6 @@
 
 @{
     ViewData["Title"] = "Network Home";
-    // Cast the ViewBag data for easy use
     var allGenres = (List<MovieDemo.Models.Genre>)ViewBag.Genres;
     var selectedIds = (int[])ViewBag.SelectedGenres;
 }
@@ -25,21 +24,16 @@
             </div>
         </div>
 
-        @* --- GENRE PILLS SECTION (MULTI-SELECT & EXPANDABLE) --- *@
+        @* --- GENRE PILLS SECTION --- *@
         <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-5">
-
-            @* 1. The "All Content" Pill (Resets filters) *@
             <a asp-action="IndexM" class="btn @(selectedIds.Length == 0 ? "btn-warning text-dark" : "btn-outline-light") rounded-pill px-4 fw-bold shadow-sm">
                 All Content
             </a>
 
-            @* 2. The Genre Pills Loop *@
             @for (int i = 0; i < allGenres.Count; i++)
             {
                 var genre = allGenres[i];
                 var isChecked = selectedIds.Contains(genre.Id);
-
-                // Pills after index 6 are hidden by default unless they are currently checked
                 string visibilityClass = (i > 6 && !isChecked) ? "extra-genre d-none" : "visible-genre";
 
                 <input type="checkbox" class="btn-check" name="selectedGenres" id="genre-@genre.Id" value="@genre.Id"
@@ -51,7 +45,6 @@
                 </label>
             }
 
-            @* 3. The "More" Toggle Button *@
             @if (allGenres.Count > 7)
             {
                 <button type="button" id="toggleGenresBtn" class="btn btn-link text-warning text-decoration-none fw-bold ms-2" onclick="toggleExtraGenres()">
@@ -71,29 +64,43 @@
         @foreach (var movie in Model)
         {
             <div class="col">
-                <a asp-action="Details" asp-route-id="@movie.Id" class="text-decoration-none">
-                    <div class="card h-100 bg-transparent border-0 movie-card shadow">
-                        <div class="poster-container position-relative overflow-hidden rounded-3">
-                            @{
-                                var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
-                                ? "https://via.placeholder.com/342x513?text=No+Image"
-                                : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
-                            }
-                            <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title">
+                <div class="card h-100 bg-transparent border-0 movie-card shadow">
+                    <div class="poster-container position-relative overflow-hidden rounded-3">
+                        @{
+                            var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
+                            ? "https://via.placeholder.com/342x513?text=No+Image"
+                            : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
 
-                            <div class="card-img-overlay d-flex align-items-end p-2 overlay-shadow">
-                                <span class="badge bg-warning text-dark shadow-sm">View Details</span>
-                            </div>
+                            // Check if movie is marked as seen
+                            bool isSeen = movie.ListItems != null && movie.ListItems.Any(li => li.MovieList.IsSystemList && li.MovieList.Title == "Seen Content");
+                        }
+
+                        <a asp-action="Details" asp-route-id="@movie.Id">
+                            <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title">
+                        </a>
+
+                        @* --- PREMIUM SEEN TOGGLE OVERLAY --- *@
+                        <div class="position-absolute top-0 end-0 p-2" style="z-index: 20;">
+                            <input type="checkbox" class="seen-checkbox d-none"
+                                   id="seen-@movie.Id" data-movie-id="@movie.Id"
+                                   @(isSeen ? "checked" : "")>
+                            <label for="seen-@movie.Id" class="seen-label" title="Mark as Seen">
+                                <i class="bi bi-check-lg"></i>
+                            </label>
                         </div>
 
-                        <div class="card-body px-1 py-3">
-                            <h6 class="card-title text-light fw-bold mb-1 text-truncate">@movie.Title</h6>
-                            <p class="card-text small text-secondary">
-                                @string.Join(" • ", movie.Genres.Select(g => g.Name))
-                            </p>
+                        <div class="card-img-overlay d-flex align-items-end p-2 overlay-shadow">
+                            <a asp-action="Details" asp-route-id="@movie.Id" class="badge bg-warning text-dark shadow-sm text-decoration-none">View Details</a>
                         </div>
                     </div>
-                </a>
+
+                    <div class="card-body px-1 py-3">
+                        <h6 class="card-title text-light fw-bold mb-1 text-truncate">@movie.Title</h6>
+                        <p class="card-text small text-secondary">
+                            @string.Join(" • ", movie.Genres.Select(g => g.Name))
+                        </p>
+                    </div>
+                </div>
             </div>
         }
     </div>
@@ -105,6 +112,36 @@
         background-color: #0c0c0c;
     }
 
+    /* Seen Toggle Button Styling */
+    .seen-label {
+        width: 32px;
+        height: 32px;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .seen-label:hover {
+            transform: scale(1.1);
+            background: rgba(0, 0, 0, 0.8);
+            border-color: #ffc107;
+        }
+
+    .seen-checkbox:checked + .seen-label {
+        background: #ffc107;
+        color: #000;
+        border-color: #ffc107;
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+    }
+
+    /* Glass Search Box */
     .search-glass-container {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(15px);
@@ -126,6 +163,7 @@
         color: white !important;
     }
 
+    /* Movie Card Animation */
     .movie-card {
         transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
@@ -149,49 +187,51 @@
     .movie-card:hover .overlay-shadow {
         opacity: 1;
     }
-
-    .btn-outline-light {
-        border-color: rgba(255,255,255,0.15);
-        background-color: rgba(255,255,255,0.03);
-    }
-
-        .btn-outline-light:hover {
-            background-color: white;
-            color: black;
-        }
 </style>
 
 @* --- SCRIPTS --- *@
 <script>
+    // 1. Genre Visibility Toggle
     function toggleExtraGenres() {
         const extraPills = document.querySelectorAll('.extra-genre');
         const btn = document.getElementById('toggleGenresBtn');
-
-        extraPills.forEach(pill => {
-            pill.classList.toggle('d-none');
-        });
-
-        if (btn.innerHTML.includes("More")) {
-            btn.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Less';
-        } else {
-            btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> More';
-        }
+        extraPills.forEach(pill => pill.classList.toggle('d-none'));
+        btn.innerHTML = btn.innerHTML.includes("More") ?
+            '<i class="bi bi-dash-circle me-1"></i> Less' : '<i class="bi bi-plus-circle me-1"></i> More';
     }
 
-    // Auto-expand the "More" section if any hidden pills are currently checked
+    // 2. Seen Content Logic (AJAX)
+    document.querySelectorAll('.seen-checkbox').forEach(cb => {
+        cb.addEventListener('change', async function() {
+            const movieId = this.getAttribute('data-movie-id');
+            const isChecked = this.checked;
+
+            try {
+                const response = await fetch('/Movies/ToggleSeen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `movieId=${movieId}`
+                });
+
+                if (!response.ok) {
+                    this.checked = !isChecked;
+                    alert("Unable to update. Please ensure you are logged in.");
+                }
+            } catch (error) {
+                console.error("Error updating seen status:", error);
+                this.checked = !isChecked;
+            }
+        });
+    });
+
+    // Auto-expand genres on load
     document.addEventListener("DOMContentLoaded", function() {
         const checkedInputs = document.querySelectorAll('input.btn-check:checked');
         let shouldExpand = false;
-
         checkedInputs.forEach(input => {
             const label = document.querySelector(`label[for="${input.id}"]`);
-            if (label && label.classList.contains('extra-genre')) {
-                shouldExpand = true;
-            }
+            if (label && label.classList.contains('extra-genre')) shouldExpand = true;
         });
-
-        if (shouldExpand) {
-            toggleExtraGenres();
-        }
+        if (shouldExpand) toggleExtraGenres();
     });
 </script>
