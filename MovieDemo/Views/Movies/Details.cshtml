@@ -2,12 +2,15 @@
 
 @{
     ViewData["Title"] = Model.Title;
-    // Check where the user came from (Default to Home if nothing is sent)
+
+    // Check navigation context
     var returnUrl = Context.Request.Query["returnUrl"].ToString();
+    int? fromListId = ViewBag.FromListId;
 }
 
 <div class="container mt-5">
     <div class="row bg-dark text-white rounded-4 shadow-lg overflow-hidden border border-secondary">
+        @* --- Poster Section --- *@
         <div class="col-md-5 p-0">
             @{
                 var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
@@ -17,6 +20,7 @@
             <img src="@posterSrc" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="@Model.Title">
         </div>
 
+        @* --- Content Section --- *@
         <div class="col-md-7 p-5 d-flex flex-column justify-content-center">
             <h1 class="display-3 fw-bold mb-2">@Model.Title</h1>
 
@@ -35,34 +39,36 @@
                     <span class="fs-5 fw-bold text-info">@Model.Director</span>
                 </div>
                 <div class="col-3">
-                    <small class="text-muted d-block">Release Date</small>
+                    <small class="text-muted d-block uppercase">Release</small>
                     <span class="fs-5">@Model.ReleaseDate</span>
                 </div>
                 <div class="col-3">
-                    <small class="text-muted d-block">Runtime</small>
+                    <small class="text-muted d-block uppercase">Runtime</small>
                     <span class="fs-5">@Model.Runtime min</span>
                 </div>
             </div>
 
+            @* --- Navigation Buttons --- *@
             <div class="mt-auto d-flex gap-3">
                 @if (returnUrl == "Manage")
                 {
-                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-2">
+                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-2 rounded-pill fw-bold">
                             <i class="bi bi-arrow-left"></i> Back to Manager
+                        </a>
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info px-4 py-2 text-dark fw-bold rounded-pill">
+                            <i class="bi bi-pencil-square"></i> Edit Movie
+                        </a>
+                }
+                else if (fromListId.HasValue)
+                {
+                        <a asp-action="ListDetails" asp-route-id="@fromListId" class="btn btn-outline-warning px-4 py-2 rounded-pill fw-bold">
+                            <i class="bi bi-collection-play me-2"></i> Back to List
                         </a>
                 }
                 else
                 {
-                        <a asp-action="IndexM" class="btn btn-outline-warning px-4 py-2">
-                            <i class="bi bi-house"></i> Back to Home
-                        </a>
-                }
-
-                @* If user came from Manage, they are an admin, so show the Edit button *@
-                @if (returnUrl == "Manage")
-                {
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info px-4 py-2 text-dark fw-bold">
-                            <i class="bi bi-pencil-square"></i> Edit Movie
+                        <a asp-action="IndexM" class="btn btn-outline-warning px-4 py-2 rounded-pill fw-bold">
+                            <i class="bi bi-house me-2"></i> Back to Home
                         </a>
                 }
             </div>
@@ -72,11 +78,15 @@
 
 <style>
     body {
-        background-color: #0f0f0f; /* Match the Network background */
+        background-color: #0f0f0f;
     }
     .uppercase {
         text-transform: uppercase;
         letter-spacing: 1px;
         font-size: 0.75rem;
+    }
+    /* Smooth hover effect for the big card */
+    .row.bg-dark {
+        transition: transform 0.3s ease;
     }
 </style>

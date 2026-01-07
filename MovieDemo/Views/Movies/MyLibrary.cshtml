@@ -2,12 +2,10 @@
 
 @{
     ViewData["Title"] = "My Library";
-    // Sort so Seen and Watchlist are always the first two big cards
     var sortedLists = Model.OrderByDescending(l => l.IsSystemList).ThenBy(l => l.Title);
 }
 
 <div class="container-fluid px-5 mt-4">
-    @* --- HEADER --- *@
     <div class="d-flex justify-content-between align-items-end mb-5">
         <div>
             <h1 class="display-5 fw-bold text-white mb-1">My Library</h1>
@@ -18,58 +16,58 @@
         </button>
     </div>
 
-    @* --- THE GRID (Zoomed Out Style) --- *@
     <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
         @foreach (var list in sortedLists)
         {
-            <div class="col">
-                <div class="card h-100 bg-black border-secondary shadow-sm list-card position-relative overflow-hidden">
-                    <div class="card-body d-flex flex-column p-3">
+                <div class="col">
+                    <div class="card h-100 bg-black border-secondary shadow-sm list-card position-relative overflow-hidden">
+                        <div class="card-body d-flex flex-column p-3">
 
-                        @* Icon & Delete Action *@
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div class="icon-box @(list.IsSystemList ? "system-icon" : "custom-icon")">
-                                <i class="bi @(list.Title == "Seen Content" ? "bi-eye-fill" : (list.Title == "Watchlist" ? "bi-bookmark-fill" : "bi-collection-play"))"></i>
-                            </div>
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="icon-box @(list.IsSystemList ? "system-icon" : "custom-icon")">
+                                    <i class="bi @(list.Title == "Seen Content" ? "bi-eye-fill" : (list.Title == "Watchlist" ? "bi-bookmark-fill" : "bi-collection-play"))"></i>
+                                </div>
 
                             @if (!list.IsSystemList)
                             {
-                                <form asp-action="DeleteList" method="post" onsubmit="return confirm('Delete this list?');" class="z-3">
-                                    <input type="hidden" name="listId" value="@list.Id" />
-                                    <button type="submit" class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
-                                </form>
+                                @* FIXED: Added z-index and event stop to prevent card click *@
+                                        <div class="z-3">
+                                            <form id="delete-form-@list.Id" asp-action="DeleteList" method="post">
+                                                <input type="hidden" name="listId" value="@list.Id" />
+                                                <button type="button" class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100" 
+                                                        onclick="confirmDeleteList(event, @list.Id, '@list.Title.Replace("'", "\\'")')">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                             }
-                        </div>
+                            </div>
 
-                        @* Title & Count *@
-                        <h6 class="text-white fw-bold mb-1 text-truncate">@list.Title</h6>
-                        <p class="text-secondary small mb-3">@list.Items.Count Titles</p>
+                            <h6 class="text-white fw-bold mb-1 text-truncate">@list.Title</h6>
+                            <p class="text-secondary small mb-3">@list.Items.Count Titles</p>
 
-                        @* Poster Preview Stack *@
-                        <div class="mt-auto d-flex align-items-center poster-stack">
+                            <div class="mt-auto d-flex align-items-center poster-stack">
                             @foreach (var item in list.Items.Take(3))
                             {
-                                <img src="@(item.Movie.PosterUrl?.StartsWith("http") == true ? item.Movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + item.Movie.PosterUrl)"
-                                     class="stack-img" />
+                                        <img src="@(item.Movie.PosterUrl?.StartsWith("http") == true ? item.Movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + item.Movie.PosterUrl)"
+                                             class="stack-img" alt="poster" />
                             }
                             @if (list.Items.Count > 3)
                             {
-                                <span class="ms-2 text-secondary small">+@(list.Items.Count - 3)</span>
+                                        <span class="ms-2 text-secondary small">+@(list.Items.Count - 3)</span>
                             }
-                        </div>
+                            </div>
 
-                        @* Invisible link covers the card for "Open List" *@
-                        <a asp-action="ListDetails" asp-route-id="@list.Id" class="stretched-link"></a>
+                        @* Navigation link for the whole card *@
+                            <a asp-action="ListDetails" asp-route-id="@list.Id" class="stretched-link"></a>
+                        </div>
                     </div>
                 </div>
-            </div>
         }
     </div>
 </div>
 
-@* --- CREATE LIST MODAL --- *@
+@* Modal for New List *@
 <div class="modal fade" id="newListModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-dark text-white border-secondary">
@@ -93,61 +91,37 @@
 </div>
 
 <style>
-    .list-card {
-        transition: all 0.3s ease;
-        border-radius: 16px;
-        min-height: 180px;
-        background: linear-gradient(145deg, #1a1a1a, #000000);
-    }
-
-        .list-card:hover {
-            transform: translateY(-10px);
-            border-color: #ffc107 !important;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important;
-        }
-
-    /* Icon Styling */
-    .icon-box {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.4rem;
-    }
-
-    .system-icon {
-        background: rgba(255, 193, 7, 0.15);
-        color: #ffc107;
-    }
-
-    .custom-icon {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fff;
-    }
-
-    /* Poster Stack Effect */
-    .poster-stack .stack-img {
-        width: 32px;
-        height: 45px;
-        object-fit: cover;
-        border-radius: 4px;
-        border: 1px solid #000;
-        margin-right: -12px;
-        transition: 0.3s;
-    }
-
-    .list-card:hover .stack-img {
-        margin-right: 2px;
-    }
-
-    .hover-opacity-100:hover {
-        opacity: 1 !important;
-    }
-
-    .z-3 {
-        z-index: 3;
-        position: relative;
-    }
+    .list-card { transition: all 0.3s ease; border-radius: 16px; min-height: 180px; background: linear-gradient(145deg, #1a1a1a, #000000); }
+    .list-card:hover { transform: translateY(-10px); border-color: #ffc107 !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important; }
+    .icon-box { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+    .system-icon { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
+    .custom-icon { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .poster-stack .stack-img { width: 32px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #000; margin-right: -12px; transition: 0.3s; }
+    .list-card:hover .stack-img { margin-right: 2px; }
+    .hover-opacity-100:hover { opacity: 1 !important; }
+    .z-3 { z-index: 3; position: relative; }
 </style>
+
+<script>
+    function confirmDeleteList(event, id, title) {
+        // Stop the "stretched-link" from firing when clicking delete
+        event.preventDefault();
+        event.stopPropagation();
+
+        Swal.fire({
+            title: 'Delete Collection?',
+            text: `Are you sure you want to delete "${title}"? This cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it',
+            background: '#1a1a1a',
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('delete-form-' + id).submit();
+            }
+        })
+    }
+</script>

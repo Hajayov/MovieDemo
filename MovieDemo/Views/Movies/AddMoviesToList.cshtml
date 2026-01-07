@@ -1,0 +1,120 @@
+﻿@model IEnumerable<MovieDemo.Models.Movie>
+@{
+    int listId = ViewBag.ListId;
+    List<int> existingIds = ViewBag.ExistingMovieIds;
+    var genres = ViewBag.Genres as IEnumerable<MovieDemo.Models.Genre>;
+}
+
+<div class="container-fluid px-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a asp-action="ListDetails" asp-route-id="@listId" class="btn btn-outline-secondary rounded-pill shadow-sm">
+            <i class="bi bi-arrow-left me-2"></i>Back to @ViewBag.ListName
+        </a>
+        <div class="text-end">
+            <h2 class="text-white mb-0">Add Movies to <span class="text-warning">@ViewBag.ListName</span></h2>
+            <small class="text-secondary">Click the plus icon to add movies to your custom collection.</small>
+        </div>
+    </div>
+
+    @* --- SEARCH & FILTER SECTION --- *@
+    <form asp-action="AddMoviesToList" method="get" class="mb-5 bg-dark p-4 rounded-4 shadow-sm border border-secondary">
+        <input type="hidden" name="listId" value="@listId" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-black border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" value="@ViewContext.HttpContext.Request.Query["search"]" 
+                           class="form-control bg-black border-secondary text-white" placeholder="Search movies or directors...">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var genre in genres)
+                    {
+                        bool isChecked = (ViewContext.HttpContext.Request.Query["selectedGenres"].ToString().Split(',').Contains(genre.Id.ToString()));
+                            <div class="genre-pill">
+                                <input type="checkbox" name="selectedGenres" value="@genre.Id" id="genre-@genre.Id" 
+                                       class="btn-check" @(isChecked ? "checked" : "") onchange="this.form.submit()">
+                                <label class="btn btn-outline-secondary btn-sm rounded-pill px-3" for="genre-@genre.Id">@genre.Name</label>
+                            </div>
+                    }
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-warning w-100 fw-bold rounded-pill">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    @* --- MOVIE GRID --- *@
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
+        @foreach (var movie in Model)
+        {
+            bool isAdded = existingIds.Contains(movie.Id);
+                <div class="col">
+                    <div class="card h-100 bg-black border-secondary movie-card shadow-sm overflow-hidden">
+                        <div class="position-relative">
+                            <img src="@(movie.PosterUrl?.StartsWith("http") == true ? movie.PosterUrl : "https://image.tmdb.org/t/p/w500" + movie.PosterUrl)" 
+                                 class="card-img-top @(isAdded ? "opacity-25" : "opacity-75")" 
+                                 style="aspect-ratio:2/3; object-fit:cover;" alt="@movie.Title">
+
+                        @if (isAdded)
+                        {
+                                    <div class="position-absolute top-50 start-50 translate-middle text-success display-4">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    </div>
+                        }
+                        </div>
+
+                        <div class="card-body p-2 text-center">
+                            <h6 class="text-white text-truncate mb-2">@movie.Title</h6>
+
+                            <button id="btn-@movie.Id" 
+                                    class="btn @(isAdded ? "btn-success disabled" : "btn-warning") btn-sm w-100 rounded-pill fw-bold"
+                                    onclick="addMovie(this, @listId, @movie.Id)"
+                        @(isAdded ? "disabled" : "")>
+                                <i class="bi @(isAdded ? "bi-check-lg" : "bi-plus-lg")"></i>
+                            @(isAdded ? "In List" : "Add to List")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+        }
+    </div>
+</div>
+
+<style>
+    .movie-card { transition: transform 0.2s; border-radius: 12px; }
+    .movie-card:hover { transform: scale(1.03); border-color: #ffc107 !important; }
+    .btn-check:checked + .btn-outline-secondary { background-color: #ffc107; color: #000; border-color: #ffc107; }
+</style>
+
+<script>
+function addMovie(btnElement, lId, mId) {
+    // Disable immediately to prevent double-clicks
+    btnElement.disabled = true;
+
+    $.post('/Movies/AddMovieToListAjax', { listId: lId, movieId: mId }, function(data) {
+        if(data.success) {
+            btnElement.classList.replace('btn-warning', 'btn-success');
+            btnElement.innerHTML = '<i class="bi bi-check-lg"></i> In List';
+
+            // Fade out the poster slightly
+            btnElement.closest('.movie-card').querySelector('img').style.opacity = '0.25';
+
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            Toast.fire({ icon: 'success', title: 'Added to collection' });
+        } else {
+            btnElement.disabled = false;
+            alert("Something went wrong. Please try again.");
+        }
+    });
+}
+</script>

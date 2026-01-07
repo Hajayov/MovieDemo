@@ -13,13 +13,18 @@ namespace MovieDemo.Data
     {
         public static void Seed(AppDbContext context)
         {
+            // STOP: If movies already exist, do not run the seeder.
+            // This prevents the 'RemoveRange' from wiping your library lists on every restart.
+            if (context.Movies.Any())
+            {
+                Console.WriteLine(">>> DATABASE ALREADY SEEDED. SKIPPING TO PROTECT USER LISTS.");
+                return;
+            }
+
             try
             {
-                // 1. Wipe the database so we can fix the broken images
-                context.Movies.RemoveRange(context.Movies);
-                context.Genres.RemoveRange(context.Genres);
-                context.SaveChanges();
-                Console.WriteLine(">>> DATABASE CLEARED. RE-IMPORTING WITH NEW IMAGE URLS...");
+                // This section now only runs ONCE (when the database is totally empty)
+                Console.WriteLine(">>> STARTING DATABASE IMPORT...");
             }
             catch (Exception ex) { Console.WriteLine(">>> CLEAR ERROR: " + ex.Message); }
 
@@ -51,8 +56,7 @@ namespace MovieDemo.Data
                     {
                         var title = csv.GetField("title")?.Trim() ?? "Untitled";
 
-                        // --- THE NEW IMAGE URL LOGIC ---
-                        // This uses the w600_and_h900_face path you found!
+                        // --- IMAGE URL LOGIC ---
                         var rawPath = csv.GetField("poster_path")?.Trim() ?? "";
                         var cleanPath = rawPath.TrimStart('/');
                         var finalPosterUrl = $"https://image.tmdb.org/t/p/w600_and_h900_face/{cleanPath}";
@@ -64,12 +68,9 @@ namespace MovieDemo.Data
                             Director = csv.GetField("director") ?? "Unknown",
                             PosterUrl = finalPosterUrl,
                             ReleaseDate = csv.GetField("release_date"),
-                        }; 
+                        };
 
                         if (int.TryParse(csv.GetField("runtime"), out int r)) { movie.Runtime = r; }
-
-                        // Console log to check the generated links in the Output window
-                        Console.WriteLine($">>> Loading Movie: {title} | URL: {finalPosterUrl}");
 
                         // --- GENRE PROCESSING ---
                         var genreJson = csv.GetField("genres");
@@ -98,7 +99,7 @@ namespace MovieDemo.Data
                         context.Movies.Add(movie);
                     }
                     context.SaveChanges();
-                    Console.WriteLine(">>> SUCCESS! DATABASE SYNCED WITH WORKING IMAGES.");
+                    Console.WriteLine(">>> SUCCESS! DATABASE INITIALIZED AND SAVED.");
                 }
             }
             catch (Exception ex) { Console.WriteLine(">>> IMPORT ERROR: " + ex.Message); }
