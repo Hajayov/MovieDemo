@@ -31,6 +31,16 @@
                             </a>
                         </li>
 
+                        @* USER LIBRARY - Visible to anyone logged in (User or Admin) *@
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-warning fw-bold" asp-controller="Movies" asp-action="MyLibrary">
+                                    <i class="bi bi-collection-play"></i> My Library
+                                </a>
+                            </li>
+                        }
+
                         @* Admin Tools Dropdown *@
                         @if (User.Identity.IsAuthenticated && User.IsInRole("Admin"))
                         {
@@ -64,7 +74,7 @@
                         @if (User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item d-flex align-items-center">
-                                <span class="text-secondary me-3 small">Logged in: <strong class="text-light">@User.Identity.Name</strong></span>
+                                <span class="text-secondary me-3 small d-none d-md-inline">Logged in: <strong class="text-light">@User.Identity.Name</strong></span>
                                 <a class="btn btn-outline-danger btn-sm px-3" asp-controller="Account" asp-action="Logout">Logout</a>
                             </li>
                         }

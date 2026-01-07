@@ -1,85 +1,153 @@
-﻿@model IEnumerable<MovieDemo.Models.Movie>
+﻿@model IEnumerable<MovieDemo.Models.MovieList>
 
 @{
     ViewData["Title"] = "My Library";
+    // Sort so Seen and Watchlist are always the first two big cards
+    var sortedLists = Model.OrderByDescending(l => l.IsSystemList).ThenBy(l => l.Title);
 }
 
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid px-5 mt-4">
+    @* --- HEADER --- *@
+    <div class="d-flex justify-content-between align-items-end mb-5">
         <div>
-            <h1 class="text-white fw-bold">My Library</h1>
-            <p class="text-secondary">You have completed @Model.Count() movies</p>
+            <h1 class="display-5 fw-bold text-white mb-1">My Library</h1>
+            <p class="text-secondary mb-0">Manage your custom collections and movie moods.</p>
         </div>
-        <a asp-action="IndexM" class="btn btn-outline-warning rounded-pill">
-            <i class="bi bi-plus-lg"></i> Discover More
-        </a>
+        <button class="btn btn-warning fw-bold rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#newListModal">
+            <i class="bi bi-plus-lg me-2"></i> Create New List
+        </button>
     </div>
 
-    @if (!Model.Any())
-    {
-        <div class="text-center py-5 glass-card rounded-4">
-            <i class="bi bi-film text-secondary display-1"></i>
-            <h3 class="text-white mt-3">Your library is empty</h3>
-            <p class="text-secondary">Start marking movies as "Seen" to build your collection.</p>
-        </div>
-    }
-    else
-    {
-        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-4">
-            @foreach (var movie in Model)
-            {
-                <div class="col">
-                    <div class="card bg-transparent border-0 h-100 library-card">
-                        <div class="position-relative overflow-hidden rounded-3 shadow">
-                            <img src="@(movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl)"
-                                 class="card-img-top" alt="@movie.Title">
+    @* --- THE GRID (Zoomed Out Style) --- *@
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
+        @foreach (var list in sortedLists)
+        {
+            <div class="col">
+                <div class="card h-100 bg-black border-secondary shadow-sm list-card position-relative overflow-hidden">
+                    <div class="card-body d-flex flex-column p-3">
 
-                            @* Simple Remove Button *@
-                            <div class="position-absolute top-0 end-0 p-2">
-                                <button class="btn btn-danger btn-sm rounded-circle shadow"
-                                        onclick="removeFromLibrary(@movie.Id, this)">
-                                    <i class="bi bi-x"></i>
-                                </button>
+                        @* Icon & Delete Action *@
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="icon-box @(list.IsSystemList ? "system-icon" : "custom-icon")">
+                                <i class="bi @(list.Title == "Seen Content" ? "bi-eye-fill" : (list.Title == "Watchlist" ? "bi-bookmark-fill" : "bi-collection-play"))"></i>
                             </div>
+
+                            @if (!list.IsSystemList)
+                            {
+                                <form asp-action="DeleteList" method="post" onsubmit="return confirm('Delete this list?');" class="z-3">
+                                    <input type="hidden" name="listId" value="@list.Id" />
+                                    <button type="submit" class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            }
                         </div>
-                        <div class="py-2">
-                            <h6 class="text-white mb-0 text-truncate">@movie.Title</h6>
-                            <small class="text-warning">Watched</small>
+
+                        @* Title & Count *@
+                        <h6 class="text-white fw-bold mb-1 text-truncate">@list.Title</h6>
+                        <p class="text-secondary small mb-3">@list.Items.Count Titles</p>
+
+                        @* Poster Preview Stack *@
+                        <div class="mt-auto d-flex align-items-center poster-stack">
+                            @foreach (var item in list.Items.Take(3))
+                            {
+                                <img src="@(item.Movie.PosterUrl?.StartsWith("http") == true ? item.Movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + item.Movie.PosterUrl)"
+                                     class="stack-img" />
+                            }
+                            @if (list.Items.Count > 3)
+                            {
+                                <span class="ms-2 text-secondary small">+@(list.Items.Count - 3)</span>
+                            }
                         </div>
+
+                        @* Invisible link covers the card for "Open List" *@
+                        <a asp-action="ListDetails" asp-route-id="@list.Id" class="stretched-link"></a>
                     </div>
                 </div>
-            }
+            </div>
+        }
+    </div>
+</div>
+
+@* --- CREATE LIST MODAL --- *@
+<div class="modal fade" id="newListModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <form asp-action="CreateCustomList" method="post">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">New Collection</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-4 text-center">
+                    <i class="bi bi-folder-plus text-warning display-4 mb-3"></i>
+                    <input type="text" name="title" class="form-control form-control-lg bg-black text-white border-secondary text-center"
+                           placeholder="Name your list..." required autocomplete="off" />
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold">Create</button>
+                </div>
+            </form>
         </div>
-    }
+    </div>
 </div>
 
 <style>
-    .glass-card {
+    .list-card {
+        transition: all 0.3s ease;
+        border-radius: 16px;
+        min-height: 180px;
+        background: linear-gradient(145deg, #1a1a1a, #000000);
+    }
+
+        .list-card:hover {
+            transform: translateY(-10px);
+            border-color: #ffc107 !important;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important;
+        }
+
+    /* Icon Styling */
+    .icon-box {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+    }
+
+    .system-icon {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+    }
+
+    .custom-icon {
         background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
     }
 
-    .library-card img {
+    /* Poster Stack Effect */
+    .poster-stack .stack-img {
+        width: 32px;
+        height: 45px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #000;
+        margin-right: -12px;
         transition: 0.3s;
-        filter: grayscale(30%);
     }
 
-    .library-card:hover img {
-        filter: grayscale(0%);
-        transform: scale(1.03);
+    .list-card:hover .stack-img {
+        margin-right: 2px;
+    }
+
+    .hover-opacity-100:hover {
+        opacity: 1 !important;
+    }
+
+    .z-3 {
+        z-index: 3;
+        position: relative;
     }
 </style>
-
-<script>
-    async function removeFromLibrary(movieId, btn) {
-        if(!confirm("Remove from your seen list?")) return;
-
-        const response = await fetch(`/Movies/ToggleSeen?movieId=${movieId}`, { method: 'POST' });
-        if(response.ok) {
-            // Smoothly remove the card from UI
-            btn.closest('.col').fadeOut(300, function() { $(this).remove(); });
-            location.reload(); // Simple way to refresh the count and UI
-        }
-    }
-</script>

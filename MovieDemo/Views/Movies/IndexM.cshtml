@@ -71,22 +71,32 @@
                             ? "https://via.placeholder.com/342x513?text=No+Image"
                             : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
 
-                            // Check if movie is marked as seen
-                            bool isSeen = movie.ListItems != null && movie.ListItems.Any(li => li.MovieList.IsSystemList && li.MovieList.Title == "Seen Content");
+                            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                            bool isSeen = movie.ListItems != null &&
+                            movie.ListItems.Any(li => li.MovieList.UserId.ToString() == userId && li.MovieList.Title == "Seen Content");
+
+                            bool isInWatchlist = movie.ListItems != null &&
+                            movie.ListItems.Any(li => li.MovieList.UserId.ToString() == userId && li.MovieList.Title == "Watchlist");
                         }
 
                         <a asp-action="Details" asp-route-id="@movie.Id">
                             <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title">
                         </a>
 
-                        @* --- PREMIUM SEEN TOGGLE OVERLAY --- *@
-                        <div class="position-absolute top-0 end-0 p-2" style="z-index: 20;">
-                            <input type="checkbox" class="seen-checkbox d-none"
-                                   id="seen-@movie.Id" data-movie-id="@movie.Id"
-                                   @(isSeen ? "checked" : "")>
-                            <label for="seen-@movie.Id" class="seen-label" title="Mark as Seen">
-                                <i class="bi bi-check-lg"></i>
-                            </label>
+                        @* --- DUAL ACTION OVERLAY (EYE & BOOKMARK) --- *@
+                        <div class="position-absolute top-0 end-0 p-2 d-flex flex-column gap-2" style="z-index: 20;">
+                            <button class="action-btn @(isSeen ? "active-seen" : "")"
+                                    onclick="toggleMovieStatus(@movie.Id, 'Seen', this)"
+                                    title="Mark as Seen">
+                                <i class="bi @(isSeen ? "bi-eye-fill" : "bi-eye")"></i>
+                            </button>
+
+                            <button class="action-btn @(isInWatchlist ? "active-watch" : "")"
+                                    onclick="toggleMovieStatus(@movie.Id, 'Watchlist', this)"
+                                    title="Add to Watchlist">
+                                <i class="bi @(isInWatchlist ? "bi-bookmark-plus-fill" : "bi-bookmark-plus")"></i>
+                            </button>
                         </div>
 
                         <div class="card-img-overlay d-flex align-items-end p-2 overlay-shadow">
@@ -112,54 +122,60 @@
         background-color: #0c0c0c;
     }
 
-    /* Seen Toggle Button Styling */
-    .seen-label {
-        width: 32px;
-        height: 32px;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(5px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Glass Action Buttons */
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
     }
 
-        .seen-label:hover {
-            transform: scale(1.1);
+        .action-btn:hover {
+            transform: scale(1.15);
             background: rgba(0, 0, 0, 0.8);
-            border-color: #ffc107;
+            border-color: rgba(255, 193, 7, 0.5);
         }
 
-    .seen-checkbox:checked + .seen-label {
-        background: #ffc107;
-        color: #000;
-        border-color: #ffc107;
-        box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+    /* Active State Colors */
+    .active-seen {
+        background: rgba(255, 193, 7, 0.25) !important;
+        color: #ffc107 !important;
+        border-color: #ffc107 !important;
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.3);
+    }
+
+    .active-watch {
+        background: rgba(13, 202, 240, 0.25) !important;
+        color: #0dcaf0 !important;
+        border-color: #0dcaf0 !important;
+        box-shadow: 0 0 15px rgba(13, 202, 240, 0.3);
     }
 
     /* Glass Search Box */
     .search-glass-container {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
         border-radius: 50px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
+        transition: 0.3s;
     }
 
         .search-glass-container:focus-within {
-            background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 193, 7, 0.6);
             box-shadow: 0 0 25px rgba(255, 193, 7, 0.15);
         }
 
     .glass-input {
         box-shadow: none !important;
-        font-size: 1.1rem;
         color: white !important;
     }
 
@@ -181,7 +197,7 @@
     .overlay-shadow {
         background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%);
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: 0.3s;
     }
 
     .movie-card:hover .overlay-shadow {
@@ -191,7 +207,6 @@
 
 @* --- SCRIPTS --- *@
 <script>
-    // 1. Genre Visibility Toggle
     function toggleExtraGenres() {
         const extraPills = document.querySelectorAll('.extra-genre');
         const btn = document.getElementById('toggleGenresBtn');
@@ -200,31 +215,31 @@
             '<i class="bi bi-dash-circle me-1"></i> Less' : '<i class="bi bi-plus-circle me-1"></i> More';
     }
 
-    // 2. Seen Content Logic (AJAX)
-    document.querySelectorAll('.seen-checkbox').forEach(cb => {
-        cb.addEventListener('change', async function() {
-            const movieId = this.getAttribute('data-movie-id');
-            const isChecked = this.checked;
+    async function toggleMovieStatus(movieId, type, btn) {
+        const endpoint = type === 'Seen' ? '/Movies/ToggleSeen' : '/Movies/ToggleWatchlist';
+        const icon = btn.querySelector('i');
 
-            try {
-                const response = await fetch('/Movies/ToggleSeen', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `movieId=${movieId}`
-                });
+        try {
+            const response = await fetch(`${endpoint}?movieId=${movieId}`, { method: 'POST' });
 
-                if (!response.ok) {
-                    this.checked = !isChecked;
-                    alert("Unable to update. Please ensure you are logged in.");
+            if (response.ok) {
+                if (type === 'Seen') {
+                    btn.classList.toggle('active-seen');
+                    icon.classList.toggle('bi-eye');
+                    icon.classList.toggle('bi-eye-fill');
+                } else {
+                    btn.classList.toggle('active-watch');
+                    icon.classList.toggle('bi-bookmark-plus');
+                    icon.classList.toggle('bi-bookmark-plus-fill');
                 }
-            } catch (error) {
-                console.error("Error updating seen status:", error);
-                this.checked = !isChecked;
+            } else {
+                alert("Please login to manage your library.");
             }
-        });
-    });
+        } catch (error) {
+            console.error("Error updating status:", error);
+        }
+    }
 
-    // Auto-expand genres on load
     document.addEventListener("DOMContentLoaded", function() {
         const checkedInputs = document.querySelectorAll('input.btn-check:checked');
         let shouldExpand = false;
