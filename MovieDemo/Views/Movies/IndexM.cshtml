@@ -4,6 +4,10 @@
     ViewData["Title"] = "Network Home";
     var allGenres = (List<MovieDemo.Models.Genre>)ViewBag.Genres;
     var selectedIds = (int[])ViewBag.SelectedGenres;
+
+    // These come from the updated IndexM action in the Controller
+    var seenMovieIds = (List<int>)ViewBag.SeenMovieIds ?? new List<int>();
+    var watchlistMovieIds = (List<int>)ViewBag.WatchlistMovieIds ?? new List<int>();
 }
 
 <div class="container-fluid px-4 mt-3">
@@ -71,13 +75,9 @@
                             ? "https://via.placeholder.com/342x513?text=No+Image"
                             : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
 
-                            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                            bool isSeen = movie.ListItems != null &&
-                            movie.ListItems.Any(li => li.MovieList.UserId.ToString() == userId && li.MovieList.Title == "Seen Content");
-
-                            bool isInWatchlist = movie.ListItems != null &&
-                            movie.ListItems.Any(li => li.MovieList.UserId.ToString() == userId && li.MovieList.Title == "Watchlist");
+                            // Updated Logic: Use the IDs from ViewBag to determine state
+                            bool isSeen = seenMovieIds.Contains(movie.Id);
+                            bool isInWatchlist = watchlistMovieIds.Contains(movie.Id);
                         }
 
                         <a asp-action="Details" asp-route-id="@movie.Id">

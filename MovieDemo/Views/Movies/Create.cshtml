@@ -16,8 +16,6 @@
 
                     <div class="card-body px-4 pb-4">
                         <form asp-action="Create" method="post">
-                            @* Removed the ModelState code block from here to fix the red errors *@
-
                             <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
                             <div class="row">
@@ -34,6 +32,7 @@
                                             <div class="form-group mb-3">
                                                 <label asp-for="Director" class="form-label text-light small opacity-75">Director</label>
                                                 <input asp-for="Director" class="form-control glass-input" placeholder="e.g. Christopher Nolan" />
+                                                <span asp-validation-for="Director" class="text-danger small"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -49,7 +48,7 @@
                                         <input asp-for="ReleaseDate" type="date" class="form-control glass-input" />
                                     </div>
 
-                                    @* Dynamic Category Grid *@
+                                    @* Dynamic Category Grid - FIXED NAME TO MATCH CONTROLLER *@
                                     <div class="form-group mb-3">
                                         <label class="form-label text-warning small fw-bold text-uppercase mb-2">Assign Categories</label>
                                         <div class="genre-grid p-3 rounded shadow-inner">
@@ -59,7 +58,7 @@
                                                 {
                                                     <div class="form-check custom-check">
                                                         <input class="form-check-input" type="checkbox"
-                                                               name="selectedGenres"
+                                                               name="genreIds"
                                                                value="@genre.Id"
                                                                id="genre_@genre.Id">
                                                         <label class="form-check-label text-light small" for="genre_@genre.Id">
@@ -80,10 +79,10 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3 text-center">
                                         <label asp-for="PosterUrl" class="form-label text-light small opacity-75">Poster ID or URL</label>
-                                        <input asp-for="PosterUrl" class="form-control glass-input mb-3" id="posterInput" placeholder="TMDB ID or full URL..." />
+                                        <input asp-for="PosterUrl" class="form-control glass-input mb-3" id="posterInput" placeholder="TMDB ID (e.g. /r79gn.jpg)" />
 
                                         <div class="poster-preview-box rounded mx-auto shadow-lg overflow-hidden border border-secondary border-opacity-25">
-                                            <img src="https://via.placeholder.com/342x513?text=Awaiting+Poster" id="posterPreview" class="img-fluid h-100 w-100 object-fit-cover" alt="Preview">
+                                            <img src="https://via.placeholder.com/342x513?text=Awaiting+Poster" id="posterPreview" class="img-fluid h-100 w-100" style="object-fit: cover;" alt="Preview">
                                         </div>
                                         <small class="text-secondary d-block mt-2" style="font-size: 0.7rem;">Preview updates live</small>
                                     </div>
@@ -115,7 +114,7 @@
     }
 
     .edit-page-wrapper {
-        background: linear-gradient(rgba(12,12,12,0.94), rgba(12,12,12,0.94)), url('https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1920&q=80');
+        background: linear-gradient(rgba(12,12,12,0.9), rgba(12,12,12,0.9)), url('https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1920&q=80');
         background-size: cover;
         background-attachment: fixed;
         min-height: 100vh;
@@ -168,6 +167,11 @@
 </style>
 
 @section Scripts {
+    @* Added Validation Scripts *@
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
     <script>
         document.getElementById('posterInput').addEventListener('input', function(e) {
             const val = e.target.value.trim();
@@ -175,6 +179,7 @@
             if(val.startsWith('http')) {
                 preview.src = val;
             } else if(val.length > 0) {
+                // Using w500 to match your library/manage views for consistency
                 preview.src = 'https://image.tmdb.org/t/p/w500' + (val.startsWith('/') ? '' : '/') + val;
             } else {
                 preview.src = 'https://via.placeholder.com/342x513?text=Awaiting+Poster';

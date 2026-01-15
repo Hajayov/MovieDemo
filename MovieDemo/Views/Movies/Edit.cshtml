@@ -11,15 +11,12 @@
                 <div class="card glass-edit-card shadow-lg">
                     <div class="card-header border-0 bg-transparent pt-4 px-4">
                         <h2 class="text-warning fw-bold mb-0" style="letter-spacing: 1px;">EDIT ASSET: @Model.Title</h2>
-                        <p class="text-secondary small">Updating Network Database...</p>
+                        <p class="text-secondary small text-uppercase">Updating Network Database...</p>
                     </div>
 
                     <div class="card-body px-4 pb-4">
                         <form asp-action="Edit" method="post">
                             <input type="hidden" asp-for="Id" />
-
-                            @* Removed the ModelState logic that was causing red lines *@
-
                             <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
                             <div class="row">
@@ -32,78 +29,61 @@
                                     </div>
 
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
-                                                <label asp-for="Director" class="form-label text-light small opacity-75">Director</label>
-                                                <input asp-for="Director" class="form-control glass-input" />
-                                            </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label asp-for="Director" class="form-label text-light small opacity-75">Director</label>
+                                            <input asp-for="Director" class="form-control glass-input" required />
+                                            <span asp-validation-for="Director" class="text-danger small"></span>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
-                                                <label asp-for="Runtime" class="form-label text-light small opacity-75">Runtime (Mins)</label>
-                                                <input asp-for="Runtime" type="number" class="form-control glass-input" />
-                                            </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label asp-for="Runtime" class="form-label text-light small opacity-75">Runtime (min)</label>
+                                            <input asp-for="Runtime" type="number" class="form-control glass-input" />
+                                            <span asp-validation-for="Runtime" class="text-danger small"></span>
                                         </div>
                                     </div>
 
                                     <div class="form-group mb-3">
-                                        <label asp-for="ReleaseDate" class="form-label text-light small opacity-75">Release Date</label>
-                                        <input asp-for="ReleaseDate" type="date" class="form-control glass-input" />
+                                        <label asp-for="PosterUrl" class="form-label text-light small opacity-75">Poster URL / TMDB Path</label>
+                                        <input asp-for="PosterUrl" id="PosterUrlInput" class="form-control glass-input" placeholder="/path.jpg or http://..." />
+                                        <span asp-validation-for="PosterUrl" class="text-danger small"></span>
                                     </div>
 
-                                    @* Dynamic Category Grid *@
+                                    @* Category Selection Grid *@
                                     <div class="form-group mb-3">
-                                        <label class="form-label text-warning small fw-bold text-uppercase mb-2">Network Categories</label>
-                                        <div class="genre-grid p-3 rounded shadow-inner">
-                                            @if (ViewBag.Genres != null)
+                                        <label class="form-label text-light small opacity-75 d-block">Network Taxonomies (Genres)</label>
+                                        <div class="genre-grid p-3 rounded">
+                                            @foreach (var genre in (IEnumerable<MovieDemo.Models.Genre>)ViewBag.Genres)
                                             {
-                                                foreach (var genre in (IEnumerable<MovieDemo.Models.Genre>)ViewBag.Genres)
-                                                {
-                                                    bool isChecked = Model.Genres != null && Model.Genres.Any(g => g.Id == genre.Id);
-                                                    <div class="form-check custom-check">
-                                                        <input class="form-check-input" type="checkbox"
-                                                               name="selectedGenres"
-                                                               value="@genre.Id"
-                                                               id="genre_@genre.Id"
-                                                               @(isChecked ? "checked" : "")>
-                                                        <label class="form-check-label text-light small" for="genre_@genre.Id">
-                                                            @genre.Name
-                                                        </label>
-                                                    </div>
-                                                }
+                                                <div class="form-check custom-check">
+                                                    <input class="form-check-input" type="checkbox" name="genreIds" value="@genre.Id"
+                                                           id="genre_@genre.Id"
+                                                           @(Model.Genres != null && Model.Genres.Any(g => g.Id == genre.Id) ? "checked" : "")>
+                                                    <label class="form-check-label text-light small" for="genre_@genre.Id">
+                                                        @genre.Name
+                                                    </label>
+                                                </div>
                                             }
                                         </div>
                                     </div>
                                 </div>
 
-                                @* Right Column: Visual Preview *@
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3 text-center">
-                                        <label asp-for="PosterUrl" class="form-label text-light small opacity-75">Poster ID/URL</label>
-                                        <input asp-for="PosterUrl" class="form-control glass-input mb-3" id="posterInput" />
-
-                                        <div class="poster-preview-box rounded mx-auto shadow-lg overflow-hidden border border-secondary border-opacity-25">
-                                            @{
-                                                var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
-                                                ? "https://via.placeholder.com/342x513?text=No+Image"
-                                                : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w500" + (Model.PosterUrl.StartsWith("/") ? "" : "/") + Model.PosterUrl);
-                                            }
-                                            <img src="@posterSrc" id="posterPreview" class="img-fluid h-100 w-100 object-fit-cover" alt="Preview">
-                                        </div>
+                                @* Right Column: Poster Preview *@
+                                <div class="col-md-4 d-flex flex-column align-items-center justify-content-start pt-2">
+                                    <label class="form-label text-light small opacity-75 mb-3">Asset Visualization</label>
+                                    <div class="poster-preview-box rounded shadow-lg overflow-hidden border border-secondary border-opacity-25">
+                                        @{
+                                            var initialPoster = string.IsNullOrEmpty(Model.PosterUrl)
+                                            ? "https://via.placeholder.com/500x750?text=No+Image"
+                                            : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w500" + Model.PosterUrl);
+                                        }
+                                        <img id="posterPreview" src="@initialPoster" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="Preview" />
                                     </div>
+                                    <p class="text-muted small mt-2 italic">Real-time update active</p>
                                 </div>
                             </div>
 
-                            <div class="form-group mb-4">
-                                <label asp-for="Summary" class="form-label text-light small opacity-75">Synopsis</label>
-                                <textarea asp-for="Summary" class="form-control glass-input" rows="3"></textarea>
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center border-top border-secondary border-opacity-25 pt-4">
-                                <a asp-action="Manage" class="btn btn-outline-secondary px-4 border-0">
-                                    <i class="bi bi-arrow-left me-1"></i> Back to Manager
-                                </a>
-                                <button type="submit" class="btn btn-warning px-5 fw-bold shadow">SAVE CHANGES</button>
+                            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                                <a asp-action="Manage" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+                                <button type="submit" class="btn btn-warning fw-bold px-5 rounded-pill shadow">UPDATE ASSET</button>
                             </div>
                         </form>
                     </div>
@@ -119,15 +99,15 @@
     }
 
     .edit-page-wrapper {
-        background: linear-gradient(rgba(12,12,12,0.94), rgba(12,12,12,0.94)), url('https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=1920&q=80');
+        background: radial-gradient(circle at top right, rgba(255, 193, 7, 0.05), transparent 400px), url('https://i.ibb.co/HfdDxD8H/manage-BG.png');
         background-size: cover;
         background-attachment: fixed;
         min-height: 100vh;
     }
 
     .glass-edit-card {
-        background: rgba(255, 255, 255, 0.02) !important;
-        backdrop-filter: blur(25px);
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 24px;
     }
@@ -146,10 +126,10 @@
 
     .genre-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
         gap: 10px;
         background: rgba(0,0,0,0.3);
-        max-height: 180px;
+        max-height: 200px;
         overflow-y: auto;
         border: 1px solid rgba(255,255,255,0.05);
     }
@@ -160,23 +140,26 @@
     }
 
     .poster-preview-box {
-        width: 180px;
+        width: 100%;
+        max-width: 220px;
         aspect-ratio: 2/3;
         background: #000;
+        border: 2px solid rgba(255, 193, 7, 0.1);
     }
 </style>
 
 @section Scripts {
     <script>
-        document.getElementById('posterInput').addEventListener('input', function(e) {
-            const val = e.target.value.trim();
-            const preview = document.getElementById('posterPreview');
-            if(val.startsWith('http')) {
-                preview.src = val;
-            } else if(val.length > 0) {
-                preview.src = 'https://image.tmdb.org/t/p/w500' + (val.startsWith('/') ? '' : '/') + val;
+        // Real-time Poster Preview
+        const posterInput = document.getElementById('PosterUrlInput');
+        const previewImg = document.getElementById('posterPreview');
+
+        posterInput.addEventListener('input', function () {
+            const val = this.value.trim();
+            if (val) {
+                previewImg.src = val.startsWith('http') ? val : 'https://image.tmdb.org/t/p/w500' + val;
             } else {
-                preview.src = 'https://via.placeholder.com/342x513?text=No+Image';
+                previewImg.src = 'https://via.placeholder.com/500x750?text=No+Image';
             }
         });
     </script>

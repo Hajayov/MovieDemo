@@ -1,141 +1,241 @@
 ﻿@model IEnumerable<MovieDemo.Models.Movie>
 
 @{
-    ViewData["Title"] = "Network Library Management";
+    ViewData["Title"] = "Network Home";
+    var allGenres = (List<MovieDemo.Models.Genre>)ViewBag.Genres;
+    var selectedIds = (int[])ViewBag.SelectedGenres;
+
+    // Get the lists from ViewBag (we will add these to the controller next)
+    var seenMovieIds = (List<int>)ViewBag.SeenMovieIds ?? new List<int>();
+    var watchMovieIds = (List<int>)ViewBag.WatchlistMovieIds ?? new List<int>();
 }
 
-<div class="container-fluid mt-4 px-5">
-    @* Header Section *@
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="display-6 fw-bold text-warning mb-0" style="letter-spacing: 1px;">LIBRARY CONTROL</h1>
-            <p class="text-secondary small">Manage the Hajayov Network digital assets</p>
-        </div>
-        <a asp-action="Create" class="btn btn-warning fw-bold px-4 py-2 shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i>ADD NEW CONTENT
-        </a>
-    </div>
+<div class="container-fluid px-4 mt-3">
+    @* --- CINEMATIC SEARCH & FILTER SECTION --- *@
+    <form method="get" asp-action="IndexM" id="filterForm">
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold text-light mb-4" style="letter-spacing: 1px;">Explore the Network</h1>
 
-    @* Main Table Card *@
-    <div class="card glass-card border-0 shadow-lg">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle mb-0">
-                    <thead class="custom-thead">
-                        <tr>
-                            <th class="ps-4" style="width: 100px;">Asset</th>
-                            <th>Title</th>
-                            <th>Director</th>
-                            <th>Genres</th>
-                            <th class="text-center">Runtime</th>
-                            <th class="text-center pe-4">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var movie in Model)
-                        {
-                                <tr class="admin-row">
-                                    <td class="ps-4">
-                                    @{
-                                        var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
-                                            ? "https://via.placeholder.com/92x138?text=No+Image"
-                                            : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + movie.PosterUrl);
-                                    }
-                                        <img src="@posterSrc" alt="Poster" class="rounded shadow-sm border border-secondary" style="width: 50px; aspect-ratio: 2/3; object-fit: cover;" />
-                                    </td>
-                                    <td>
-                                        <span class="fw-bold text-light">@movie.Title</span>
-                                    </td>
-                                    <td class="text-secondary">@movie.Director</td>
-                                    <td>
-                                    @foreach (var genre in movie.Genres)
-                                    {
-                                                <span class="badge rounded-pill bg-dark text-info border border-info border-opacity-25 me-1" style="font-size: 0.7rem;">
-                                            @genre.Name
-                                                </span>
-                                    }
-                                    </td>
-                                    <td class="text-center text-secondary small">@movie.Runtime min</td>
-                                    <td class="text-center pe-4">
-                                        <div class="btn-group btn-group-sm rounded shadow-sm">
-                                            <a asp-action="Edit" asp-route-id="@movie.Id" class="btn btn-outline-warning" title="Edit Content">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </a>
-                                            <a asp-action="Details" asp-route-id="@movie.Id" asp-route-returnUrl="Manage" class="btn btn-outline-light" title="View Details">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a asp-action="Delete" asp-route-id="@movie.Id" class="btn btn-outline-danger" title="Remove Asset">
-                                                <i class="bi bi-trash3"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                        }
-                    </tbody>
-                </table>
+            <div class="search-glass-container mx-auto p-1" style="max-width: 600px;">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0 text-secondary ps-4">
+                        <i class="bi bi-search" style="font-size: 1.2rem;"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control bg-transparent text-white border-0 glass-input py-3"
+                           placeholder="Search titles, directors..." value="@ViewBag.Search" autocomplete="off"
+                           onchange="document.getElementById('filterForm').submit()" />
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="mt-4">
-        <a asp-action="IndexM" class="text-warning text-decoration-none fw-bold small">
-            <i class="bi bi-arrow-left me-1"></i> RETURN TO GALLERY
-        </a>
+        @* --- GENRE PILLS SECTION --- *@
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-5">
+            @for (int i = 0; i < allGenres.Count; i++)
+            {
+                var genre = allGenres[i];
+                var isSelected = selectedIds.Contains(genre.Id);
+                <div class="@(i >= 12 ? "extra-genre d-none" : "")">
+                    <input type="checkbox" name="selectedGenres" value="@genre.Id"
+                           id="genre-@genre.Id" class="btn-check"
+                           @(isSelected ? "checked" : "")
+                           onchange="document.getElementById('filterForm').submit()" />
+                    <label class="btn btn-outline-secondary rounded-pill px-3 py-1 btn-sm genre-pill @(i >= 12 ? "extra-genre" : "")"
+                           for="genre-@genre.Id">
+                        @genre.Name <small class="opacity-50 ms-1">@genre.Movies.Count</small>
+                    </label>
+                </div>
+            }
+            @if (allGenres.Count > 12)
+            {
+                <button type="button" id="toggleGenresBtn" onclick="toggleExtraGenres()" class="btn btn-link text-warning text-decoration-none btn-sm fw-bold ms-2">
+                    <i class="bi bi-plus-circle"></i> More
+                </button>
+            }
+        </div>
+    </form>
+
+    @* --- MOVIE GRID --- *@
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
+        @foreach (var item in Model)
+        {
+            <div class="col">
+                <div class="card h-100 bg-transparent border-0 movie-card shadow-sm">
+                    <div class="position-relative overflow-hidden rounded-4 shadow poster-container">
+                        @{
+                            var posterSrc = string.IsNullOrEmpty(item.PosterUrl)
+                            ? "https://via.placeholder.com/342x513?text=No+Image"
+                            : (item.PosterUrl.StartsWith("http") ? item.PosterUrl : "https://image.tmdb.org/t/p/w342" + item.PosterUrl);
+                        }
+                        <img src="@posterSrc" class="card-img-top img-fluid" alt="@item.Title" style="aspect-ratio: 2/3; object-fit: cover;">
+
+                        @* Action Overlay *@
+                        <div class="movie-overlay">
+                            <div class="d-flex flex-column gap-2 p-3 h-100 justify-content-between">
+                                <div class="d-flex justify-content-end gap-2">
+                                    @* Seen Button *@
+                                    <button onclick="toggleMovieStatus(@item.Id, 'Seen', this)"
+                                            class="btn-status @(seenMovieIds.Contains(item.Id) ? "active-seen" : "")">
+                                        <i class="bi @(seenMovieIds.Contains(item.Id) ? "bi-eye-fill" : "bi-eye")"></i>
+                                    </button>
+                                    @* Watchlist Button *@
+                                    <button onclick="toggleMovieStatus(@item.Id, 'Watchlist', this)"
+                                            class="btn-status @(watchMovieIds.Contains(item.Id) ? "active-watch" : "")">
+                                        <i class="bi @(watchMovieIds.Contains(item.Id) ? "bi-bookmark-plus-fill" : "bi-bookmark-plus")"></i>
+                                    </button>
+                                </div>
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-light btn-sm rounded-pill fw-bold py-2 shadow-sm">
+                                    VIEW ASSET
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body px-1 py-3 text-center">
+                        <h6 class="card-title text-white mb-1 text-truncate fw-bold">@item.Title</h6>
+                        <p class="card-text text-secondary small mb-0">@item.Director</p>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
 
-@* STYLING TO MATCH THE NETWORK THEME *@
 <style>
     body {
         background-color: #0c0c0c;
-        color: #e0e0e0;
+        color: #fff;
     }
 
-    /* Glass Effect Card */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.03) !important;
+    .search-glass-container {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        border-radius: 15px;
-        overflow: hidden;
+        transition: all 0.3s ease;
     }
 
-    /* Professional Table Header */
-    .custom-thead {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-bottom: 2px solid rgba(255, 193, 7, 0.3);
+        .search-glass-container:focus-within {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #ffc107;
+            box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);
+        }
+
+    .genre-pill {
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #aaa;
+        transition: 0.2s;
     }
 
-    .custom-thead th {
-        color: #ffc107 !important;
+        .genre-pill:hover {
+            border-color: #ffc107;
+            color: #fff;
+        }
+
+    .btn-check:checked + .genre-pill {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
         font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 1.5px;
-        padding: 15px 10px;
     }
 
-    /* Hover effects for rows */
-    .admin-row {
-        transition: background-color 0.2s ease;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    .movie-card {
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .table-hover tbody tr:hover {
-        background-color: rgba(255, 255, 255, 0.05) !important;
+        .movie-card:hover {
+            transform: translateY(-10px);
+        }
+
+    .poster-container {
+        position: relative;
     }
 
-    /* Action Buttons styling */
-    .btn-group .btn {
-        padding: 6px 12px;
-        border-color: rgba(255, 255, 255, 0.1);
+    .movie-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
-    .btn-outline-warning:hover { color: #000; }
+    .movie-card:hover .movie-overlay {
+        opacity: 1;
+    }
 
-    /* Scrollbar for dark theme */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #0c0c0c; }
-    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #ffc107; }
+    .btn-status {
+        background: rgba(0,0,0,0.6);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+        .btn-status:hover {
+            transform: scale(1.1);
+            background: rgba(0,0,0,0.8);
+        }
+
+    /* PERSISTENT ACTIVE COLORS */
+    .active-seen {
+        color: #ffc107 !important;
+        border-color: #ffc107 !important;
+    }
+
+    .active-watch {
+        color: #0dcaf0 !important;
+        border-color: #0dcaf0 !important;
+    }
 </style>
+
+<script>
+    function toggleExtraGenres() {
+        const extras = document.querySelectorAll('.extra-genre');
+        const btn = document.getElementById('toggleGenresBtn');
+        const isHidden = extras[0].classList.contains('d-none');
+
+        extras.forEach(el => el.classList.toggle('d-none'));
+        btn.innerHTML = isHidden ? '<i class="bi bi-dash-circle"></i> Less' : '<i class="bi bi-plus-circle"></i> More';
+    }
+
+    async function toggleMovieStatus(movieId, type, btn) {
+        const endpoint = type === 'Seen' ? '/Movies/ToggleSeen' : '/Movies/ToggleWatchlist';
+        const icon = btn.querySelector('i');
+
+        try {
+            const response = await fetch(`${endpoint}?movieId=${movieId}`, { method: 'POST' });
+
+            if (response.ok) {
+                if (type === 'Seen') {
+                    btn.classList.toggle('active-seen');
+                    icon.classList.toggle('bi-eye');
+                    icon.classList.toggle('bi-eye-fill');
+                } else {
+                    btn.classList.toggle('active-watch');
+                    icon.classList.toggle('bi-bookmark-plus');
+                    icon.classList.toggle('bi-bookmark-plus-fill');
+                }
+            } else {
+                alert("Please login to manage your library.");
+            }
+        } catch (error) {
+            console.error("Error updating status:", error);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const checkedInputs = document.querySelectorAll('input.btn-check:checked');
+        let shouldExpand = false;
+        checkedInputs.forEach(input => {
+            const label = document.querySelector(`label[for="${input.id}"]`);
+            if (label && label.classList.contains('extra-genre')) shouldExpand = true;
+        });
+        if (shouldExpand) toggleExtraGenres();
+    });
+</script>
