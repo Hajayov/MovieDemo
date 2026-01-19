@@ -20,56 +20,92 @@ namespace MovieDemo.Controllers
             return View();
         }
 
-        // --- MAIN GALLERY & DISCOVERY ---
+        // --- MAIN GALLERY & DISCOVERY (User View) ---
         public async Task<IActionResult> IndexM(string search, int[] selectedGenres)
+        {
+            await PopulateCommonViewData(search, selectedGenres);
+
+            // This ensures filters stay on the IndexM page
+            ViewBag.TargetAction = "IndexM";
+            ViewBag.PageTitle = "Explore the Network";
+
+            var moviesQuery = GetFilteredMovies(search, selectedGenres);
+            return View(await moviesQuery.ToListAsync());
+        }
+
+        // --- ADMIN MANAGEMENT (Admin View) ---
+        public async Task<IActionResult> Manage(string search, int[] selectedGenres)
+        {
+            await PopulateCommonViewData(search, selectedGenres);
+
+            // KEY FIX: Tells the view to submit filters to the Manage action
+            ViewBag.TargetAction = "Manage";
+            ViewBag.PageTitle = "Manage Library Assets";
+
+            var moviesQuery = GetFilteredMovies(search, selectedGenres);
+            return View(await moviesQuery.OrderBy(m => m.Title).ToListAsync());
+        }
+
+        // --- SHARED LOGIC HELPERS ---
+
+        private IQueryable<Movie> GetFilteredMovies(string search, int[] selectedGenres)
+        {
+            var query = _context.Movies.Include(m => m.Genres).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(m => m.Title.Contains(search) || m.Director.Contains(search));
+
+            if (selectedGenres?.Length > 0)
+                query = query.Where(m => m.Genres.Any(g => selectedGenres.Contains(g.Id)));
+
+            return query;
+        }
+
+        private async Task PopulateCommonViewData(string search, int[] selectedGenres)
         {
             var userEmail = User.Identity.Name;
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
 
-            // Fetch IDs of movies already in user's system lists to persist the "pressed" state
-            var seenMovieIds = await _context.MovieListItems
-                .Where(li => li.MovieList.UserId == user.Id && li.MovieList.Title == "Seen Content")
-                .Select(li => li.MovieId)
-                .ToListAsync();
+            if (user != null)
+            {
+                ViewBag.SeenMovieIds = await _context.MovieListItems
+                    .Where(li => li.MovieList.UserId == user.Id && li.MovieList.Title == "Seen Content")
+                    .Select(li => li.MovieId).ToListAsync();
 
-            var watchlistMovieIds = await _context.MovieListItems
-                .Where(li => li.MovieList.UserId == user.Id && li.MovieList.Title == "Watchlist")
-                .Select(li => li.MovieId)
-                .ToListAsync();
+                ViewBag.WatchlistMovieIds = await _context.MovieListItems
+                    .Where(li => li.MovieList.UserId == user.Id && li.MovieList.Title == "Watchlist")
+                    .Select(li => li.MovieId).ToListAsync();
+            }
+            else
+            {
+                ViewBag.SeenMovieIds = new List<int>();
+                ViewBag.WatchlistMovieIds = new List<int>();
+            }
 
-            ViewBag.SeenMovieIds = seenMovieIds;
-            ViewBag.WatchlistMovieIds = watchlistMovieIds;
-
-            // Existing filter logic
-            var genres = await _context.Genres.Include(g => g.Movies).OrderByDescending(g => g.Movies.Count).ToListAsync();
-            ViewBag.Genres = genres;
-
-            var moviesQuery = _context.Movies.Include(m => m.Genres).AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-                moviesQuery = moviesQuery.Where(m => m.Title.Contains(search) || m.Director.Contains(search));
-
-            if (selectedGenres?.Length > 0)
-                moviesQuery = moviesQuery.Where(m => m.Genres.Any(g => selectedGenres.Contains(g.Id)));
-
+            // Fill Genres for the Pills
+            ViewBag.Genres = await _context.Genres.Include(g => g.Movies).OrderByDescending(g => g.Movies.Count).ToListAsync();
             ViewBag.SelectedGenres = selectedGenres ?? new int[0];
-            return View(await moviesQuery.ToListAsync());
+            ViewBag.Search = search;
         }
+
+        // --- CRUD OPERATIONS ---
 
         public async Task<IActionResult> Details(int id, string returnUrl, int? fromListId)
         {
             var movie = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null) return NotFound();
+
+            var userEmail = User.Identity.Name;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user != null)
+            {
+                ViewBag.IsSeen = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == user.Id && li.MovieList.Title == "Seen Content");
+                ViewBag.InWatchlist = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == user.Id && li.MovieList.Title == "Watchlist");
+            }
+
             ViewBag.ReturnUrl = returnUrl;
             ViewBag.FromListId = fromListId;
             return View(movie);
-        }
-
-        // --- ADMIN MANAGEMENT ---
-        public async Task<IActionResult> Manage()
-        {
-            var movies = await _context.Movies.Include(m => m.Genres).OrderBy(m => m.Title).ToListAsync();
-            return View(movies);
         }
 
         public async Task<IActionResult> Create()
@@ -126,7 +162,7 @@ namespace MovieDemo.Controllers
             return RedirectToAction(nameof(Manage));
         }
 
-        // --- USER LIBRARY & LISTS ---
+        // --- USER LIBRARY ---
         public async Task<IActionResult> MyLibrary()
         {
             var userEmail = User.Identity.Name;
@@ -134,52 +170,6 @@ namespace MovieDemo.Controllers
             var lists = await _context.MovieLists.Include(l => l.Items).ThenInclude(i => i.Movie)
                                 .Where(l => l.UserId == user.Id).ToListAsync();
             return View(lists);
-        }
-
-        public async Task<IActionResult> ListDetails(int id)
-        {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            var list = await _context.MovieLists.Include(l => l.Items).ThenInclude(i => i.Movie)
-                                .FirstOrDefaultAsync(l => l.Id == id && l.UserId == user.Id);
-            return list == null ? NotFound() : View(list);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> CreateCustomList(string title)
-        {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (!string.IsNullOrWhiteSpace(title))
-            {
-                _context.MovieLists.Add(new MovieList { Title = title, IsSystemList = false, UserId = user.Id });
-                await _context.SaveChangesAsync();
-            }
-            return RedirectToAction("MyLibrary");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteList(int listId)
-        {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.Id == listId && l.UserId == user.Id && !l.IsSystemList);
-            if (list != null) { _context.MovieLists.Remove(list); await _context.SaveChangesAsync(); }
-            return RedirectToAction("MyLibrary");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> RemoveFromList(int listItemId)
-        {
-            var item = await _context.MovieListItems.Include(li => li.MovieList).FirstOrDefaultAsync(li => li.Id == listItemId);
-            if (item != null)
-            {
-                int lId = item.MovieListId;
-                _context.MovieListItems.Remove(item);
-                await _context.SaveChangesAsync();
-                return RedirectToAction("ListDetails", new { id = lId });
-            }
-            return RedirectToAction("MyLibrary");
         }
 
         // --- AJAX TOGGLES (SEEN/WATCHLIST) ---
