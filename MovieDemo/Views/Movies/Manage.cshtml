@@ -6,14 +6,27 @@
 
 <div class="container-fluid mt-4 px-5">
     @* Header Section *@
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
             <h1 class="display-6 fw-bold text-warning mb-0" style="letter-spacing: 1px;">MANAGE MOVIES</h1>
-            <p class="text-secondary small">Manage the Hajayov Network digital assets</p>
+            <p class="text-secondary small mb-0">Manage the Hajayov Network digital assets</p>
         </div>
-        <a asp-action="Create" class="btn btn-warning fw-bold px-4 py-2 shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i>ADD NEW CONTENT
-        </a>
+
+        <div class="d-flex gap-3 align-items-center">
+            @* Cinematic Search Bar *@
+            <form method="get" asp-action="Manage" class="position-relative">
+                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary"></i>
+                <input type="text" name="search" class="form-control bg-dark text-white border-secondary border-opacity-25 ps-5 rounded-pill shadow-sm"
+                       placeholder="Filter by title..." value="@ViewBag.Search"
+                       style="width: 250px; background: rgba(255,255,255,0.05) !important;"
+                       onchange="this.form.submit()" />
+            </form>
+
+            @* Add Button *@
+            <a asp-action="Create" class="btn btn-warning fw-bold px-4 py-2 shadow-sm rounded-pill text-nowrap">
+                <i class="bi bi-plus-lg me-2"></i>ADD NEW CONTENT
+            </a>
+        </div>
     </div>
 
     @* Main Table Card *@
@@ -37,11 +50,31 @@
                                 <tr class="admin-row">
                                     <td class="ps-4">
                                     @{
-                                        var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
-                                            ? "https://via.placeholder.com/92x138?text=No+Image"
-                                            : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + movie.PosterUrl);
+                                        var posterSrc = "";
+                                        if (string.IsNullOrEmpty(movie.PosterUrl))
+                                        {
+                                            // Default placeholder for missing URLs
+                                            posterSrc = "https://via.placeholder.com/92x138?text=No+Image";
+                                        }
+                                        // 1. Check if it is a full web URL (existing CSV links)
+                                        else if (movie.PosterUrl.StartsWith("http"))
+                                        {
+                                            posterSrc = movie.PosterUrl;
+                                        }
+                                        // 2. SMART LOGIC: Check if it's a local file in your 'images' folder
+                                        // (Handles filenames like "gladiator.jpg" or full paths like "/images/gladiator.jpg")
+                                        else if (movie.PosterUrl.Contains(".") || movie.PosterUrl.StartsWith("/"))
+                                        {
+                                            posterSrc = movie.PosterUrl.StartsWith("/") ? movie.PosterUrl : "/images/" + movie.PosterUrl;
+                                        }
+                                        // 3. Fallback to TMDB for standard ID codes
+                                        else
+                                        {
+                                            posterSrc = "https://image.tmdb.org/t/p/w92" + movie.PosterUrl;
+                                        }
                                     }
-                                        <img src="@posterSrc" alt="Poster" class="rounded shadow-sm border border-secondary" style="width: 50px; aspect-ratio: 2/3; object-fit: cover;" />
+                                    <img src="@posterSrc" alt="Poster" class="rounded shadow-sm border border-secondary"
+                                         style="width: 50px; aspect-ratio: 2/3; object-fit: cover;" />
                                     </td>
                                     <td>
                                         <span class="fw-bold text-light">@movie.Title</span>

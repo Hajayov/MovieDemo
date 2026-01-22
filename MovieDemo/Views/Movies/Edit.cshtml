@@ -71,9 +71,24 @@
                                     <label class="form-label text-light small opacity-75 mb-3">Asset Visualization</label>
                                     <div class="poster-preview-box rounded shadow-lg overflow-hidden border border-secondary border-opacity-25">
                                         @{
-                                            var initialPoster = string.IsNullOrEmpty(Model.PosterUrl)
-                                            ? "https://via.placeholder.com/500x750?text=No+Image"
-                                            : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w500" + Model.PosterUrl);
+                                            var initialPoster = "";
+                                            if (string.IsNullOrEmpty(Model.PosterUrl))
+                                            {
+                                                initialPoster = "https://via.placeholder.com/500x750?text=No+Image";
+                                            }
+                                            else if (Model.PosterUrl.StartsWith("http"))
+                                            {
+                                                initialPoster = Model.PosterUrl;
+                                            }
+                                            // SMART LOGIC: Check for local images in /images folder
+                                            else if (Model.PosterUrl.Contains(".") || Model.PosterUrl.StartsWith("/"))
+                                            {
+                                                initialPoster = Model.PosterUrl.StartsWith("/") ? Model.PosterUrl : "/images/" + Model.PosterUrl;
+                                            }
+                                            else
+                                            {
+                                                initialPoster = "https://image.tmdb.org/t/p/w500" + Model.PosterUrl;
+                                            }
                                         }
                                         <img id="posterPreview" src="@initialPoster" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="Preview" />
                                     </div>
@@ -150,16 +165,29 @@
 
 @section Scripts {
     <script>
-        // Real-time Poster Preview
+        // Real-time Poster Preview with Smart Pathing
         const posterInput = document.getElementById('PosterUrlInput');
         const previewImg = document.getElementById('posterPreview');
 
         posterInput.addEventListener('input', function () {
             const val = this.value.trim();
-            if (val) {
-                previewImg.src = val.startsWith('http') ? val : 'https://image.tmdb.org/t/p/w500' + val;
-            } else {
+
+            if (!val) {
                 previewImg.src = 'https://via.placeholder.com/500x750?text=No+Image';
+                return;
+            }
+
+            if (val.startsWith('http')) {
+                // External URL
+                previewImg.src = val;
+            }
+            else if (val.includes('.') || val.startsWith('/')) {
+                // Local File (e.g. gladiator.jpg or /images/gladiator.jpg)
+                previewImg.src = val.startsWith('/') ? val : '/images/' + val;
+            }
+            else {
+                // TMDB ID (e.g. /r79gn.jpg)
+                previewImg.src = 'https://image.tmdb.org/t/p/w500' + (val.startsWith('/') ? '' : '/') + val;
             }
         });
     </script>

@@ -63,7 +63,7 @@
         </div>
     </form>
 
-    @* --- MOVIE GRID --- *@
+@* --- MOVIE GRID --- *@
     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-4">
         @foreach (var movie in Model)
         {
@@ -71,17 +71,35 @@
                 <div class="card h-100 bg-transparent border-0 movie-card shadow">
                     <div class="poster-container position-relative overflow-hidden rounded-3">
                         @{
-                            var posterSrc = string.IsNullOrEmpty(movie.PosterUrl)
-                            ? "https://via.placeholder.com/342x513?text=No+Image"
-                            : (movie.PosterUrl.StartsWith("http") ? movie.PosterUrl : "https://image.tmdb.org/t/p/w342" + movie.PosterUrl);
+                            var posterSrc = "";
 
-                            // Updated Logic: Use the IDs from ViewBag to determine state
+                            if (string.IsNullOrEmpty(movie.PosterUrl))
+                            {
+                                posterSrc = "https://via.placeholder.com/342x513?text=No+Image";
+                            }
+                            // 1. Check if it is a full web URL (CSV images)
+                            else if (movie.PosterUrl.StartsWith("http"))
+                            {
+                                posterSrc = movie.PosterUrl;
+                            }
+                            // 2. Check if it is a local file in your 'images' folder
+                            // (Handles both "/images/pic.jpg" and just "pic.jpg")
+                            else if (movie.PosterUrl.Contains(".") || movie.PosterUrl.StartsWith("/"))
+                            {
+                                posterSrc = movie.PosterUrl.StartsWith("/") ? movie.PosterUrl : "/images/" + movie.PosterUrl;
+                            }
+                            // 3. Fallback to TMDB
+                            else
+                            {
+                                posterSrc = "https://image.tmdb.org/t/p/w342" + movie.PosterUrl;
+                            }
+
                             bool isSeen = seenMovieIds.Contains(movie.Id);
                             bool isInWatchlist = watchlistMovieIds.Contains(movie.Id);
                         }
 
                         <a asp-action="Details" asp-route-id="@movie.Id">
-                            <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title">
+                            <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title" style="aspect-ratio: 2/3; object-fit: cover;">
                         </a>
 
                         @* --- DUAL ACTION OVERLAY (EYE & BOOKMARK) --- *@
@@ -114,7 +132,6 @@
             </div>
         }
     </div>
-</div>
 
 @* --- CUSTOM STYLING --- *@
 <style>
