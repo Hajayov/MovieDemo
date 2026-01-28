@@ -13,9 +13,28 @@
         @* --- Poster Section --- *@
         <div class="col-md-5 p-0">
             @{
-                var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
-                    ? "https://via.placeholder.com/500x750?text=No+Poster"
-                    : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "https://image.tmdb.org/t/p/w780" + Model.PosterUrl);
+                var posterSrc = "";
+
+                if (string.IsNullOrEmpty(Model.PosterUrl))
+                {
+                    posterSrc = "https://via.placeholder.com/500x750?text=No+Poster";
+                }
+                // 1. Check if it is a full web URL
+                else if (Model.PosterUrl.StartsWith("http"))
+                {
+                    posterSrc = Model.PosterUrl;
+                }
+                // 2. SMART LOGIC: Check if it is a local file in your 'images' folder
+                // (Handles filenames like "gladiator.jpg" or paths like "/images/gladiator.jpg")
+                else if (Model.PosterUrl.Contains(".") || Model.PosterUrl.StartsWith("/"))
+                {
+                    posterSrc = Model.PosterUrl.StartsWith("/") ? Model.PosterUrl : "/images/" + Model.PosterUrl;
+                }
+                // 3. Fallback to TMDB
+                else
+                {
+                    posterSrc = "https://image.tmdb.org/t/p/w780" + Model.PosterUrl;
+                }
             }
             <img src="@posterSrc" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="@Model.Title">
         </div>

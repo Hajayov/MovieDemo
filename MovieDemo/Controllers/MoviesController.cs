@@ -161,15 +161,119 @@ namespace MovieDemo.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Manage));
         }
-
         // --- USER LIBRARY ---
         public async Task<IActionResult> MyLibrary()
         {
             var userEmail = User.Identity.Name;
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user == null) return RedirectToAction("Welcome");
+
             var lists = await _context.MovieLists.Include(l => l.Items).ThenInclude(i => i.Movie)
                                 .Where(l => l.UserId == user.Id).ToListAsync();
             return View(lists);
+        }
+
+        // GET: Movies/ListDetails/5
+        public async Task<IActionResult> ListDetails(int id)
+        {
+            var list = await _context.MovieLists
+                .Include(l => l.Items)
+                    .ThenInclude(li => li.Movie)
+                        .ThenInclude(m => m.Genres)
+                .FirstOrDefaultAsync(l => l.Id == id);
+
+            if (list == null) return NotFound();
+
+            // This tells the "Details" page to show a "Back to List" button instead of "Back to Home"
+            ViewBag.FromListId = id;
+            return View(list);
+        }
+
+        // POST: Movies/CreateCustomList
+        [HttpPost]
+        public async Task<IActionResult> CreateCustomList(string title)
+        {
+            var userEmail = User.Identity.Name;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+
+            if (user != null && !string.IsNullOrWhiteSpace(title))
+            {
+                var newList = new MovieList
+                {
+                    Title = title,
+                    UserId = user.Id,
+                    IsSystemList = false
+                };
+                _context.MovieLists.Add(newList);
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(MyLibrary));
+        }
+
+        // GET: Movies/AddMoviesToList
+        public async Task<IActionResult> AddMoviesToList(int listId, string search, int[] selectedGenres)
+        {
+            var list = await _context.MovieLists.FindAsync(listId);
+            if (list == null) return NotFound();
+
+            await PopulateCommonViewData(search, selectedGenres);
+
+            ViewBag.ListId = listId;
+            ViewBag.ListName = list.Title;
+            ViewBag.ExistingMovieIds = await _context.MovieListItems
+                .Where(li => li.MovieListId == listId)
+                .Select(li => li.MovieId).ToListAsync();
+
+            var moviesQuery = GetFilteredMovies(search, selectedGenres);
+            return View(await moviesQuery.ToListAsync());
+        }
+
+        // POST: Movies/AddMovieToListAjax
+        [HttpPost]
+        public async Task<IActionResult> AddMovieToListAjax(int listId, int movieId)
+        {
+            var exists = await _context.MovieListItems
+                .AnyAsync(li => li.MovieListId == listId && li.MovieId == movieId);
+
+            if (!exists)
+            {
+                _context.MovieListItems.Add(new MovieListItem
+                {
+                    MovieListId = listId,
+                    MovieId = movieId,
+                    DateAdded = DateTime.Now
+                });
+                await _context.SaveChangesAsync();
+            }
+            return Json(new { success = true });
+        }
+
+        // POST: Movies/RemoveFromList
+        [HttpPost]
+        public async Task<IActionResult> RemoveFromList(int listItemId)
+        {
+            var item = await _context.MovieListItems.FindAsync(listItemId);
+            if (item != null)
+            {
+                int listId = item.MovieListId;
+                _context.MovieListItems.Remove(item);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(ListDetails), new { id = listId });
+            }
+            return RedirectToAction(nameof(MyLibrary));
+        }
+
+        // POST: Movies/DeleteList
+        [HttpPost]
+        public async Task<IActionResult> DeleteList(int id)
+        {
+            var list = await _context.MovieLists.FindAsync(id);
+            if (list != null && !list.IsSystemList)
+            {
+                _context.MovieLists.Remove(list);
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(MyLibrary));
         }
 
         // --- AJAX TOGGLES (SEEN/WATCHLIST) ---
