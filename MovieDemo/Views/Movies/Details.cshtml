@@ -2,110 +2,212 @@
 
 @{
     ViewData["Title"] = Model.Title;
-
-    // Check navigation context
     var returnUrl = Context.Request.Query["returnUrl"].ToString();
     int? fromListId = ViewBag.FromListId;
+
+    // Internal scale 1-10
+    int userRating = ViewBag.UserRating ?? 0;
+    string userComment = ViewBag.UserComment ?? "";
 }
 
-<div class="container mt-5">
-    <div class="row bg-dark text-white rounded-4 shadow-lg overflow-hidden border border-secondary">
-        @* --- Poster Section --- *@
-        <div class="col-md-5 p-0">
-            @{
-                var posterSrc = "";
+<div class="container mt-5 pb-5">
+    <div class="row bg-dark text-white rounded-4 shadow-lg overflow-hidden border border-secondary" style="background: linear-gradient(145deg, #1a1a1a 0%, #0a0a0a 100%);">
 
-                if (string.IsNullOrEmpty(Model.PosterUrl))
-                {
-                    posterSrc = "https://via.placeholder.com/500x750?text=No+Poster";
-                }
-                // 1. Check if it is a full web URL
-                else if (Model.PosterUrl.StartsWith("http"))
-                {
-                    posterSrc = Model.PosterUrl;
-                }
-                // 2. SMART LOGIC: Check if it is a local file in your 'images' folder
-                // (Handles filenames like "gladiator.jpg" or paths like "/images/gladiator.jpg")
-                else if (Model.PosterUrl.Contains(".") || Model.PosterUrl.StartsWith("/"))
-                {
-                    posterSrc = Model.PosterUrl.StartsWith("/") ? Model.PosterUrl : "/images/" + Model.PosterUrl;
-                }
-                // 3. Fallback to TMDB
-                else
-                {
-                    posterSrc = "https://image.tmdb.org/t/p/w780" + Model.PosterUrl;
-                }
+        @* --- Poster Section --- *@
+        <div class="col-md-5 p-0 position-relative">
+            @{
+                var posterSrc = string.IsNullOrEmpty(Model.PosterUrl)
+                ? "https://via.placeholder.com/500x750?text=No+Poster"
+                : (Model.PosterUrl.StartsWith("http") ? Model.PosterUrl : "/images/" + Model.PosterUrl);
             }
-            <img src="@posterSrc" class="img-fluid w-100 h-100" style="object-fit: cover;" alt="@Model.Title">
+            <img src="@posterSrc" class="img-fluid w-100 h-100" style="object-fit: cover; min-height: 700px;" alt="@Model.Title">
+            <div class="position-absolute bottom-0 start-0 w-100 p-4" style="background: linear-gradient(transparent, rgba(0,0,0,0.9));">
+                @foreach (var genre in Model.Genres)
+                {
+                    <span class="badge rounded-pill bg-warning text-dark me-1 px-3 py-2 fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">@genre.Name</span>
+                }
+            </div>
         </div>
 
         @* --- Content Section --- *@
-        <div class="col-md-7 p-5 d-flex flex-column justify-content-center">
-            <h1 class="display-3 fw-bold mb-2">@Model.Title</h1>
+        <div class="col-md-7 p-5 d-flex flex-column">
 
-            <div class="mb-4">
-                @foreach (var genre in Model.Genres)
-                {
-                        <span class="badge rounded-pill bg-warning text-dark me-1 px-3 py-2">@genre.Name</span>
-                }
+            @* Title & Compact Rating Header *@
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <h1 class="display-3 fw-bold mb-0" style="letter-spacing: -1px;">@Model.Title</h1>
+
+                <div class="text-end pt-2">
+                    <div class="rating-wrapper d-inline-block position-relative fs-4">
+                        <div class="stars-background d-flex text-muted opacity-25">
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                <i class="bi bi-star-fill mx-half"></i>
+                            }
+                        </div>
+                        <div id="stars-foreground" class="stars-foreground d-flex text-warning position-absolute top-0 start-0 overflow-hidden" style="width: @(userRating * 10)%;">
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                <i class="bi bi-star-fill mx-half"></i>
+                            }
+                        </div>
+                        <div class="stars-hover-zones d-flex position-absolute top-0 start-0 w-100 h-100">
+                            @for (int i = 1; i <= 10; i++)
+                            {
+                                <div class="hover-zone" onmouseover="hoverRating(@i)" onmouseout="resetRating()" onclick="setRating(@i)"></div>
+                            }
+                        </div>
+                    </div>
+                    <div id="rating-display" class="text-warning fw-bold small mt-1 uppercase" style="font-size: 0.65rem;">
+                        MY SCORE: @((userRating / 2.0).ToString("0.0")) <span class="text-muted">/ 5.0</span>
+                    </div>
+                </div>
             </div>
 
-            <p class="lead text-secondary mb-4" style="line-height: 1.8;">@Model.Summary</p>
+            @* Summary - High Visibility *@
+            <p class="fs-5 text-white-50 mb-5" style="line-height: 1.7; font-weight: 300; max-width: 95%;">@Model.Summary</p>
 
-            <div class="row border-top border-secondary pt-4 mb-5">
-                <div class="col-6">
-                    <small class="text-muted d-block uppercase">Director</small>
-                    <span class="fs-5 fw-bold text-info">@Model.Director</span>
+            @* --- PREMIUM INFO ROW (BIGGER & BOLDER) --- *@
+            <div class="row border-top border-bottom border-secondary border-opacity-10 py-4 mb-5 shadow-sm">
+                <div class="col-4">
+                    <small class="text-muted d-block uppercase mb-2">Director</small>
+                    <span class="fs-4 fw-bold text-info" style="letter-spacing: -0.5px;">@Model.Director</span>
                 </div>
-                <div class="col-3">
-                    <small class="text-muted d-block uppercase">Release</small>
-                    <span class="fs-5">@Model.ReleaseDate</span>
+                <div class="col-4 border-start border-secondary border-opacity-20">
+                    <small class="text-muted d-block uppercase mb-2">Released</small>
+                    <span class="fs-4 fw-light text-white">@Model.ReleaseDate</span>
                 </div>
-                <div class="col-3">
-                    <small class="text-muted d-block uppercase">Runtime</small>
-                    <span class="fs-5">@Model.Runtime min</span>
+                <div class="col-4 border-start border-secondary border-opacity-20">
+                    <small class="text-muted d-block uppercase mb-2">Runtime</small>
+                    <span class="fs-4 fw-light text-white">@Model.Runtime <small class="fs-6 text-muted">min</small></span>
                 </div>
             </div>
 
-            @* --- Navigation Buttons --- *@
-            <div class="mt-auto d-flex gap-3">
-                @if (returnUrl == "Manage")
-                {
-                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-2 rounded-pill fw-bold">
-                            <i class="bi bi-arrow-left"></i> Back to Manager
-                        </a>
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-info px-4 py-2 text-dark fw-bold rounded-pill">
-                            <i class="bi bi-pencil-square"></i> Edit Movie
-                        </a>
-                }
-                else if (fromListId.HasValue)
-                {
-                        <a asp-action="ListDetails" asp-route-id="@fromListId" class="btn btn-outline-warning px-4 py-2 rounded-pill fw-bold">
-                            <i class="bi bi-collection-play me-2"></i> Back to List
-                        </a>
-                }
-                else
-                {
-                        <a asp-action="IndexM" class="btn btn-outline-warning px-4 py-2 rounded-pill fw-bold">
-                            <i class="bi bi-house me-2"></i> Back to Home
-                        </a>
-                }
+            @* Notes & Save Area *@
+            <div class="mt-auto">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-pen text-warning me-2"></i>
+                    <label class="text-muted small uppercase fw-bold" style="letter-spacing: 2px;">Private Critique</label>
+                </div>
+                <textarea id="review-comment" class="form-control bg-black border-secondary text-white mb-4 shadow-none p-3"
+                          rows="3" style="border-radius: 15px; resize: none; border-color: rgba(255,255,255,0.1) !important;"
+                          placeholder="What makes this title unique to your network?">@userComment</textarea>
+
+                <div class="d-flex gap-3">
+                    <button class="btn btn-warning flex-grow-1 fw-bold rounded-pill py-3 shadow" onclick="sendReview(@Model.Id)">
+                        SAVE TO MY NETWORK
+                    </button>
+                    @if (returnUrl == "Manage")
+                    {
+                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-3 rounded-pill fw-bold">BACK</a>
+                    }
+                    else
+                    {
+                        <a asp-action="IndexM" class="btn btn-outline-secondary px-4 py-3 rounded-pill fw-bold">BACK</a>
+                    }
+                </div>
             </div>
+
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let activeScore = @userRating;
+    const foreground = document.getElementById('stars-foreground');
+    const display = document.getElementById('rating-display');
+
+    function hoverRating(val) {
+        foreground.style.width = (val * 10) + '%';
+        foreground.classList.add('ghosting');
+        display.innerHTML = `MY SCORE: ${(val / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
+    }
+
+    function resetRating() {
+        foreground.style.width = (activeScore * 10) + '%';
+        foreground.classList.remove('ghosting');
+        display.innerHTML = `MY SCORE: ${(activeScore / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
+    }
+
+    function setRating(val) {
+        activeScore = val;
+        resetRating();
+    }
+
+    function sendReview(movieId) {
+        const commentText = document.getElementById('review-comment').value;
+        $.post('/Movies/SubmitReview', { movieId: movieId, rating: activeScore, comment: commentText }, function(res) {
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'CRITIQUE SAVED',
+                    background: '#111',
+                    color: '#ffc107',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-4 border border-warning shadow-lg' }
+                });
+            }
+        });
+    }
+</script>
+
 <style>
     body {
-        background-color: #0f0f0f;
+        background-color: #050505;
     }
+
     .uppercase {
         text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.75rem;
+        letter-spacing: 2px;
+        font-size: 0.65rem;
+        font-weight: 700;
     }
-    /* Smooth hover effect for the big card */
-    .row.bg-dark {
-        transition: transform 0.3s ease;
+
+    .mx-half {
+        margin-left: 2px;
+        margin-right: 2px;
+    }
+
+    .rating-wrapper {
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.2s;
+    }
+
+        .rating-wrapper:hover {
+            transform: translateY(-2px);
+        }
+
+    .stars-foreground {
+        white-space: nowrap;
+        transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        pointer-events: none;
+    }
+
+        .stars-foreground.ghosting {
+            opacity: 0.6;
+        }
+
+    .hover-zone {
+        flex: 1;
+        height: 100%;
+        z-index: 10;
+    }
+
+    /* Visibility and Focus Fixes */
+    .text-white-50 {
+        color: rgba(255, 255, 255, 0.55) !important;
+    }
+
+    .form-control:focus {
+        background-color: #000 !important;
+        border-color: #ffc107 !important;
+        color: #fff !important;
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.1) !important;
+    }
+
+    .display-3 {
+        font-size: 3.5rem;
     }
 </style>

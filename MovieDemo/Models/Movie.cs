@@ -12,7 +12,9 @@
 
         public List<Genre> Genres { get; set; } = new List<Genre>();
 
-        // ADD THIS: Connection to the List bridge table
+        // Connection to the List bridge table
         public virtual ICollection<MovieListItem> ListItems { get; set; } = new List<MovieListItem>();
+        // Connection to Reviews
+        public ICollection<Review> Reviews { get; set; } = new List<Review>();
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MovieDemo.Data;
 using MovieDemo.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace MovieDemo.Controllers
 {
@@ -25,7 +26,6 @@ namespace MovieDemo.Controllers
         {
             await PopulateCommonViewData(search, selectedGenres);
 
-            // This ensures filters stay on the IndexM page
             ViewBag.TargetAction = "IndexM";
             ViewBag.PageTitle = "Explore the Network";
 
@@ -38,7 +38,6 @@ namespace MovieDemo.Controllers
         {
             await PopulateCommonViewData(search, selectedGenres);
 
-            // KEY FIX: Tells the view to submit filters to the Manage action
             ViewBag.TargetAction = "Manage";
             ViewBag.PageTitle = "Manage Library Assets";
 
@@ -53,7 +52,7 @@ namespace MovieDemo.Controllers
             var query = _context.Movies.Include(m => m.Genres).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
-                query = query.Where(m => m.Title.Contains(search) || m.Director.Contains(search));
+                query = query.Where(m => m.Title.Contains(search) || (m.Director != null && m.Director.Contains(search)));
 
             if (selectedGenres?.Length > 0)
                 query = query.Where(m => m.Genres.Any(g => selectedGenres.Contains(g.Id)));
@@ -82,7 +81,6 @@ namespace MovieDemo.Controllers
                 ViewBag.WatchlistMovieIds = new List<int>();
             }
 
-            // Fill Genres for the Pills
             ViewBag.Genres = await _context.Genres.Include(g => g.Movies).OrderByDescending(g => g.Movies.Count).ToListAsync();
             ViewBag.SelectedGenres = selectedGenres ?? new int[0];
             ViewBag.Search = search;
@@ -92,20 +90,67 @@ namespace MovieDemo.Controllers
 
         public async Task<IActionResult> Details(int id, string returnUrl, int? fromListId)
         {
-            var movie = await _context.Movies.Include(m => m.Genres).FirstOrDefaultAsync(m => m.Id == id);
+            // We include Reviews so we can calculate stats if needed
+            var movie = await _context.Movies
+                .Include(m => m.Genres)
+                .Include(m => m.Reviews)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
             if (movie == null) return NotFound();
 
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (user != null)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null)
             {
-                ViewBag.IsSeen = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == user.Id && li.MovieList.Title == "Seen Content");
-                ViewBag.InWatchlist = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == user.Id && li.MovieList.Title == "Watchlist");
+                int userId = int.Parse(userIdClaim.Value);
+
+                // Load existing rating for this user so the stars fill automatically
+                var userReview = await _context.Reviews
+                    .FirstOrDefaultAsync(r => r.MovieId == id && r.UserId == userId);
+
+                ViewBag.UserRating = userReview?.Rating ?? 0;
+                ViewBag.UserComment = userReview?.Comment ?? "";
+
+                ViewBag.IsSeen = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == userId && li.MovieList.Title == "Seen Content");
+                ViewBag.InWatchlist = await _context.MovieListItems.AnyAsync(li => li.MovieId == id && li.MovieList.UserId == userId && li.MovieList.Title == "Watchlist");
             }
 
             ViewBag.ReturnUrl = returnUrl;
             ViewBag.FromListId = fromListId;
             return View(movie);
+        }
+
+        // --- RATING SYSTEM ACTION ---
+        [HttpPost]
+        public async Task<IActionResult> SubmitReview(int movieId, int rating, string comment)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Json(new { success = false, message = "Session Expired" });
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var existingReview = await _context.Reviews
+                .FirstOrDefaultAsync(r => r.MovieId == movieId && r.UserId == userId);
+
+            if (existingReview != null)
+            {
+                existingReview.Rating = rating;
+                existingReview.Comment = comment;
+                existingReview.DatePosted = DateTime.Now;
+            }
+            else
+            {
+                _context.Reviews.Add(new Review
+                {
+                    MovieId = movieId,
+                    UserId = userId,
+                    Rating = rating,
+                    Comment = comment,
+                    DatePosted = DateTime.Now
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
         }
 
         public async Task<IActionResult> Create()
@@ -142,6 +187,9 @@ namespace MovieDemo.Controllers
             existing.Title = movie.Title;
             existing.Director = movie.Director;
             existing.PosterUrl = movie.PosterUrl;
+            existing.Summary = movie.Summary;
+            existing.ReleaseDate = movie.ReleaseDate;
+            existing.Runtime = movie.Runtime;
 
             existing.Genres.Clear();
             if (genreIds != null)
@@ -161,6 +209,7 @@ namespace MovieDemo.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Manage));
         }
+
         // --- USER LIBRARY ---
         public async Task<IActionResult> MyLibrary()
         {
@@ -173,7 +222,6 @@ namespace MovieDemo.Controllers
             return View(lists);
         }
 
-        // GET: Movies/ListDetails/5
         public async Task<IActionResult> ListDetails(int id)
         {
             var list = await _context.MovieLists
@@ -184,12 +232,10 @@ namespace MovieDemo.Controllers
 
             if (list == null) return NotFound();
 
-            // This tells the "Details" page to show a "Back to List" button instead of "Back to Home"
             ViewBag.FromListId = id;
             return View(list);
         }
 
-        // POST: Movies/CreateCustomList
         [HttpPost]
         public async Task<IActionResult> CreateCustomList(string title)
         {
@@ -210,7 +256,6 @@ namespace MovieDemo.Controllers
             return RedirectToAction(nameof(MyLibrary));
         }
 
-        // GET: Movies/AddMoviesToList
         public async Task<IActionResult> AddMoviesToList(int listId, string search, int[] selectedGenres)
         {
             var list = await _context.MovieLists.FindAsync(listId);
@@ -228,7 +273,6 @@ namespace MovieDemo.Controllers
             return View(await moviesQuery.ToListAsync());
         }
 
-        // POST: Movies/AddMovieToListAjax
         [HttpPost]
         public async Task<IActionResult> AddMovieToListAjax(int listId, int movieId)
         {
@@ -248,7 +292,6 @@ namespace MovieDemo.Controllers
             return Json(new { success = true });
         }
 
-        // POST: Movies/RemoveFromList
         [HttpPost]
         public async Task<IActionResult> RemoveFromList(int listItemId)
         {
@@ -263,7 +306,6 @@ namespace MovieDemo.Controllers
             return RedirectToAction(nameof(MyLibrary));
         }
 
-        // POST: Movies/DeleteList
         [HttpPost]
         public async Task<IActionResult> DeleteList(int id)
         {
@@ -284,6 +326,8 @@ namespace MovieDemo.Controllers
         {
             var userEmail = User.Identity.Name;
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user == null) return Json(new { success = false });
+
             var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.UserId == user.Id && l.IsSystemList && l.Title == title);
 
             if (list == null)

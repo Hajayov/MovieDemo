@@ -63,8 +63,8 @@
         </div>
     </form>
 
-@* --- MOVIE GRID --- *@
-    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-4">
+    @* --- MOVIE GRID --- *@
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-4 pb-5">
         @foreach (var movie in Model)
         {
             <div class="col">
@@ -72,23 +72,18 @@
                     <div class="poster-container position-relative overflow-hidden rounded-3">
                         @{
                             var posterSrc = "";
-
                             if (string.IsNullOrEmpty(movie.PosterUrl))
                             {
                                 posterSrc = "https://via.placeholder.com/342x513?text=No+Image";
                             }
-                            // 1. Check if it is a full web URL (CSV images)
                             else if (movie.PosterUrl.StartsWith("http"))
                             {
                                 posterSrc = movie.PosterUrl;
                             }
-                            // 2. Check if it is a local file in your 'images' folder
-                            // (Handles both "/images/pic.jpg" and just "pic.jpg")
                             else if (movie.PosterUrl.Contains(".") || movie.PosterUrl.StartsWith("/"))
                             {
                                 posterSrc = movie.PosterUrl.StartsWith("/") ? movie.PosterUrl : "/images/" + movie.PosterUrl;
                             }
-                            // 3. Fallback to TMDB
                             else
                             {
                                 posterSrc = "https://image.tmdb.org/t/p/w342" + movie.PosterUrl;
@@ -102,8 +97,8 @@
                             <img src="@posterSrc" class="card-img-top img-fluid" alt="@movie.Title" style="aspect-ratio: 2/3; object-fit: cover;">
                         </a>
 
-                        @* --- DUAL ACTION OVERLAY (EYE & BOOKMARK) --- *@
-                        <div class="position-absolute top-0 end-0 p-2 d-flex flex-column gap-2" style="z-index: 20;">
+                        @* --- DUAL ACTION OVERLAY --- *@
+                        <div class="position-absolute top-0 end-0 p-2 d-flex flex-column gap-2 action-layer">
                             <button class="action-btn @(isSeen ? "active-seen" : "")"
                                     onclick="toggleMovieStatus(@movie.Id, 'Seen', this)"
                                     title="Mark as Seen">
@@ -124,19 +119,32 @@
 
                     <div class="card-body px-1 py-3">
                         <h6 class="card-title text-light fw-bold mb-1 text-truncate">@movie.Title</h6>
-                        <p class="card-text small text-secondary">
+                        @* CLAMP APPLIED HERE TO PREVENT OVERFLOW *@
+                        <div class="genre-clamp small text-secondary">
                             @string.Join(" • ", movie.Genres.Select(g => g.Name))
-                        </p>
+                        </div>
                     </div>
                 </div>
             </div>
         }
     </div>
+</div>
 
 @* --- CUSTOM STYLING --- *@
 <style>
     body {
         background-color: #0c0c0c;
+    }
+
+    /* Fix for Genre Overflow and Banner Displacement */
+    .genre-clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 1.25rem;
+        line-height: 1.25rem;
     }
 
     /* Glass Action Buttons */
@@ -162,7 +170,6 @@
             border-color: rgba(255, 193, 7, 0.5);
         }
 
-    /* Active State Colors */
     .active-seen {
         background: rgba(255, 193, 7, 0.25) !important;
         color: #ffc107 !important;
@@ -199,16 +206,22 @@
     /* Movie Card Animation */
     .movie-card {
         transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        z-index: 1;
     }
 
         .movie-card:hover {
             transform: scale(1.08);
-            z-index: 10;
+            z-index: 50; /* Ensures it zooms OVER neighboring cards */
         }
+
+    .action-layer {
+        z-index: 60;
+    }
 
     .poster-container {
         aspect-ratio: 2/3;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        background-color: #1a1a1a;
     }
 
     .overlay-shadow {
@@ -238,7 +251,6 @@
 
         try {
             const response = await fetch(`${endpoint}?movieId=${movieId}`, { method: 'POST' });
-
             if (response.ok) {
                 if (type === 'Seen') {
                     btn.classList.toggle('active-seen');
@@ -249,8 +261,6 @@
                     icon.classList.toggle('bi-bookmark-plus');
                     icon.classList.toggle('bi-bookmark-plus-fill');
                 }
-            } else {
-                alert("Please login to manage your library.");
             }
         } catch (error) {
             console.error("Error updating status:", error);
