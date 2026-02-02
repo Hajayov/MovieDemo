@@ -58,19 +58,19 @@
                         </div>
                     </div>
                     <div id="rating-display" class="text-warning fw-bold small mt-1 uppercase" style="font-size: 0.65rem;">
-                        MY SCORE: @((userRating / 2.0).ToString("0.0")) <span class="text-muted">/ 5.0</span>
+                        @(userRating > 0 ? "SAVED SCORE" : "NOT RATED"): @((userRating / 2.0).ToString("0.0")) <span class="text-muted">/ 5.0</span>
                     </div>
                 </div>
             </div>
 
-            @* Summary - High Visibility *@
+            @* Summary *@
             <p class="fs-5 text-white-50 mb-5" style="line-height: 1.7; font-weight: 300; max-width: 95%;">@Model.Summary</p>
 
-            @* --- PREMIUM INFO ROW (BIGGER & BOLDER) --- *@
+            @* --- INFO ROW --- *@
             <div class="row border-top border-bottom border-secondary border-opacity-10 py-4 mb-5 shadow-sm">
                 <div class="col-4">
                     <small class="text-muted d-block uppercase mb-2">Director</small>
-                    <span class="fs-4 fw-bold text-info" style="letter-spacing: -0.5px;">@Model.Director</span>
+                    <span class="fs-4 fw-bold text-info">@Model.Director</span>
                 </div>
                 <div class="col-4 border-start border-secondary border-opacity-20">
                     <small class="text-muted d-block uppercase mb-2">Released</small>
@@ -82,27 +82,39 @@
                 </div>
             </div>
 
-            @* Notes & Save Area *@
+            @* --- INTERACTIVE REVIEW & FOOTER AREA --- *@
             <div class="mt-auto">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-pen text-warning me-2"></i>
-                    <label class="text-muted small uppercase fw-bold" style="letter-spacing: 2px;">Private Critique</label>
-                </div>
-                <textarea id="review-comment" class="form-control bg-black border-secondary text-white mb-4 shadow-none p-3"
-                          rows="3" style="border-radius: 15px; resize: none; border-color: rgba(255,255,255,0.1) !important;"
-                          placeholder="What makes this title unique to your network?">@userComment</textarea>
+                @* Panel slides up/down based on activeScore *@
+                <div id="review-panel" style="max-height: 0; opacity: 0; overflow: hidden; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                    <div class="p-4 rounded-4 border border-warning border-opacity-10 mb-4" style="background: rgba(255, 193, 7, 0.03);">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-chat-left-text text-warning me-2"></i>
+                            <label class="text-muted small uppercase fw-bold" style="letter-spacing: 2px;">Private Critique</label>
+                        </div>
 
-                <div class="d-flex gap-3">
-                    <button class="btn btn-warning flex-grow-1 fw-bold rounded-pill py-3 shadow" onclick="sendReview(@Model.Id)">
+                        <textarea id="review-comment" class="form-control bg-black border-secondary text-white mb-0 shadow-none p-3"
+                                  rows="3" style="border-radius: 15px; resize: none; border-color: rgba(255,255,255,0.1) !important;"
+                                  placeholder="What stood out to you?">@userComment</textarea>
+                    </div>
+                </div>
+
+                @* Action Buttons Footer *@
+                <div class="d-flex gap-3 align-items-stretch">
+                    <div id="rating-prompt" class="flex-grow-1 border border-secondary border-opacity-25 rounded-pill d-flex align-items-center justify-content-center text-muted small uppercase fw-bold" style="letter-spacing: 1px; min-height: 60px;">
+                        Select a rating to review
+                    </div>
+
+                    <button id="save-btn" class="btn btn-warning flex-grow-1 fw-bold rounded-pill py-3 shadow d-none" onclick="sendReview(@Model.Id)">
                         SAVE TO MY NETWORK
                     </button>
+
                     @if (returnUrl == "Manage")
                     {
-                        <a asp-action="Manage" class="btn btn-outline-light px-4 py-3 rounded-pill fw-bold">BACK</a>
+                        <a asp-action="Manage" class="btn btn-outline-light px-5 py-3 rounded-pill d-flex align-items-center fw-bold">BACK</a>
                     }
                     else
                     {
-                        <a asp-action="IndexM" class="btn btn-outline-secondary px-4 py-3 rounded-pill fw-bold">BACK</a>
+                        <a asp-action="IndexM" class="btn btn-outline-secondary px-5 py-3 rounded-pill d-flex align-items-center fw-bold">BACK</a>
                     }
                 </div>
             </div>
@@ -116,26 +128,65 @@
     let activeScore = @userRating;
     const foreground = document.getElementById('stars-foreground');
     const display = document.getElementById('rating-display');
+    const reviewPanel = document.getElementById('review-panel');
+    const commentBox = document.getElementById('review-comment');
+    const saveBtn = document.getElementById('save-btn');
+    const ratingPrompt = document.getElementById('rating-prompt');
+
+    const scorePhrases = {
+        1: "Total disaster", 2: "Deeply flawed", 3: "Underwhelming", 4: "Forgettable",
+        5: "It was okay", 6: "Decent watch", 7: "Highly enjoyable", 8: "Great Cinema",
+        9: "Near Perfect", 10: "Masterpiece"
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (activeScore > 0) revealPanel(false);
+    });
+
+    function revealPanel(shouldFocus) {
+        reviewPanel.style.maxHeight = "500px";
+        reviewPanel.style.opacity = "1";
+        ratingPrompt.classList.add('d-none');
+        saveBtn.classList.remove('d-none');
+        if(shouldFocus) setTimeout(() => commentBox.focus(), 500);
+    }
+
+    function hidePanel() {
+        reviewPanel.style.maxHeight = "0";
+        reviewPanel.style.opacity = "0";
+        ratingPrompt.classList.remove('d-none');
+        saveBtn.classList.add('d-none');
+    }
 
     function hoverRating(val) {
         foreground.style.width = (val * 10) + '%';
         foreground.classList.add('ghosting');
-        display.innerHTML = `MY SCORE: ${(val / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
+        display.innerHTML = `${scorePhrases[val].toUpperCase()}: ${(val / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
     }
 
     function resetRating() {
         foreground.style.width = (activeScore * 10) + '%';
         foreground.classList.remove('ghosting');
-        display.innerHTML = `MY SCORE: ${(activeScore / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
+        let status = activeScore > 0 ? "SAVED SCORE" : "NOT RATED";
+        display.innerHTML = `${status}: ${(activeScore / 2.0).toFixed(1)} <span class="text-muted">/ 5.0</span>`;
     }
 
     function setRating(val) {
-        activeScore = val;
+        // TOGGLE LOGIC: If same score is clicked, reset to 0
+        if (val === activeScore) {
+            activeScore = 0;
+            hidePanel();
+            foreground.animate([{ opacity: 1 }, { opacity: 0 }, { opacity: 1 }], { duration: 300 });
+        } else {
+            activeScore = val;
+            revealPanel(true);
+            commentBox.placeholder = `You gave it a ${(val/2.0)}. What stood out?`;
+        }
         resetRating();
     }
 
     function sendReview(movieId) {
-        const commentText = document.getElementById('review-comment').value;
+        const commentText = commentBox.value;
         $.post('/Movies/SubmitReview', { movieId: movieId, rating: activeScore, comment: commentText }, function(res) {
             if (res.success) {
                 Swal.fire({
@@ -176,12 +227,12 @@
     }
 
         .rating-wrapper:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
         }
 
     .stars-foreground {
         white-space: nowrap;
-        transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         pointer-events: none;
     }
 
@@ -195,7 +246,6 @@
         z-index: 10;
     }
 
-    /* Visibility and Focus Fixes */
     .text-white-50 {
         color: rgba(255, 255, 255, 0.55) !important;
     }
@@ -204,7 +254,7 @@
         background-color: #000 !important;
         border-color: #ffc107 !important;
         color: #fff !important;
-        box-shadow: 0 0 15px rgba(255, 193, 7, 0.1) !important;
+        box-shadow: 0 0 20px rgba(255, 193, 7, 0.1) !important;
     }
 
     .display-3 {

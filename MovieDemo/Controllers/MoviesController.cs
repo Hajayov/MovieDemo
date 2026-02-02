@@ -90,7 +90,6 @@ namespace MovieDemo.Controllers
 
         public async Task<IActionResult> Details(int id, string returnUrl, int? fromListId)
         {
-            // We include Reviews so we can calculate stats if needed
             var movie = await _context.Movies
                 .Include(m => m.Genres)
                 .Include(m => m.Reviews)
@@ -103,7 +102,6 @@ namespace MovieDemo.Controllers
             {
                 int userId = int.Parse(userIdClaim.Value);
 
-                // Load existing rating for this user so the stars fill automatically
                 var userReview = await _context.Reviews
                     .FirstOrDefaultAsync(r => r.MovieId == id && r.UserId == userId);
 
@@ -119,7 +117,6 @@ namespace MovieDemo.Controllers
             return View(movie);
         }
 
-        // --- RATING SYSTEM ACTION ---
         [HttpPost]
         public async Task<IActionResult> SubmitReview(int movieId, int rating, string comment)
         {
@@ -131,7 +128,12 @@ namespace MovieDemo.Controllers
             var existingReview = await _context.Reviews
                 .FirstOrDefaultAsync(r => r.MovieId == movieId && r.UserId == userId);
 
-            if (existingReview != null)
+            // TOGGLE / RESET LOGIC: If rating is 0, user cleared it
+            if (rating == 0)
+            {
+                if (existingReview != null) _context.Reviews.Remove(existingReview);
+            }
+            else if (existingReview != null)
             {
                 existingReview.Rating = rating;
                 existingReview.Comment = comment;
@@ -213,12 +215,12 @@ namespace MovieDemo.Controllers
         // --- USER LIBRARY ---
         public async Task<IActionResult> MyLibrary()
         {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (user == null) return RedirectToAction("Welcome");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return RedirectToAction("Welcome");
+            int userId = int.Parse(userIdClaim.Value);
 
             var lists = await _context.MovieLists.Include(l => l.Items).ThenInclude(i => i.Movie)
-                                .Where(l => l.UserId == user.Id).ToListAsync();
+                                .Where(l => l.UserId == userId).ToListAsync();
             return View(lists);
         }
 
@@ -239,18 +241,15 @@ namespace MovieDemo.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateCustomList(string title)
         {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-
-            if (user != null && !string.IsNullOrWhiteSpace(title))
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && !string.IsNullOrWhiteSpace(title))
             {
-                var newList = new MovieList
+                _context.MovieLists.Add(new MovieList
                 {
                     Title = title,
-                    UserId = user.Id,
+                    UserId = int.Parse(userIdClaim.Value),
                     IsSystemList = false
-                };
-                _context.MovieLists.Add(newList);
+                });
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(MyLibrary));
@@ -306,10 +305,16 @@ namespace MovieDemo.Controllers
             return RedirectToAction(nameof(MyLibrary));
         }
 
+        // --- FIXED DELETE LIST ACTION ---
         [HttpPost]
-        public async Task<IActionResult> DeleteList(int id)
+        public async Task<IActionResult> DeleteList(int listId) // Matches the "name" in your hidden form input
         {
-            var list = await _context.MovieLists.FindAsync(id);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Unauthorized();
+            int userId = int.Parse(userIdClaim.Value);
+
+            var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.Id == listId && l.UserId == userId);
+
             if (list != null && !list.IsSystemList)
             {
                 _context.MovieLists.Remove(list);
@@ -324,15 +329,15 @@ namespace MovieDemo.Controllers
 
         private async Task<IActionResult> ToggleSystemList(string title, int mId)
         {
-            var userEmail = User.Identity.Name;
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (user == null) return Json(new { success = false });
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Json(new { success = false });
+            int userId = int.Parse(userIdClaim.Value);
 
-            var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.UserId == user.Id && l.IsSystemList && l.Title == title);
+            var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.UserId == userId && l.IsSystemList && l.Title == title);
 
             if (list == null)
             {
-                list = new MovieList { Title = title, IsSystemList = true, UserId = user.Id };
+                list = new MovieList { Title = title, IsSystemList = true, UserId = userId };
                 _context.MovieLists.Add(list);
                 await _context.SaveChangesAsync();
             }

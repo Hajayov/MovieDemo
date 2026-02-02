@@ -19,71 +19,71 @@
     <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4">
         @foreach (var list in sortedLists)
         {
-                <div class="col">
-                    <div class="card h-100 bg-black border-secondary shadow-sm list-card position-relative overflow-hidden">
-                        <div class="card-body d-flex flex-column p-3">
+            <div class="col">
+                <div class="card h-100 bg-black border-secondary shadow-sm list-card position-relative overflow-hidden">
+                    <div class="card-body d-flex flex-column p-3">
 
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <div class="icon-box @(list.IsSystemList ? "system-icon" : "custom-icon")">
-                                    <i class="bi @(list.Title == "Seen Content" ? "bi-eye-fill" : (list.Title == "Watchlist" ? "bi-bookmark-fill" : "bi-collection-play"))"></i>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="icon-box @(list.IsSystemList ? "system-icon" : "custom-icon")">
+                                <i class="bi @(list.Title == "Seen Content" ? "bi-eye-fill" : (list.Title == "Watchlist" ? "bi-bookmark-fill" : "bi-collection-play"))"></i>
+                            </div>
 
                             @if (!list.IsSystemList)
                             {
-                                @* FIXED: Added z-index and event stop to prevent card click *@
-                                        <div class="z-3">
-                                            <form id="delete-form-@list.Id" asp-action="DeleteList" method="post">
-                                                <input type="hidden" name="listId" value="@list.Id" />
-                                                <button type="button" class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100" 
-                                                        onclick="confirmDeleteList(event, @list.Id, '@list.Title.Replace("'", "\\'")')">
-                                                    <i class="bi bi-trash3"></i>
-                                                </button>
-                                            </form>
-                                        </div>
+                                @* Higher Z-index ensures this button is clickable over the card link *@
+                                <button type="button"
+                                        class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100 position-relative z-3"
+                                        onclick="confirmDeleteList(event, @list.Id, '@list.Title.Replace("'", "\\'")')">
+                                    <i class="bi bi-trash3 fs-5"></i>
+                                </button>
                             }
-                            </div>
+                        </div>
 
-                            <h6 class="text-white fw-bold mb-1 text-truncate">@list.Title</h6>
-                            <p class="text-secondary small mb-3">@list.Items.Count Titles</p>
+                        <h6 class="text-white fw-bold mb-1 text-truncate">@list.Title</h6>
+                        <p class="text-secondary small mb-3">@list.Items.Count Titles</p>
 
-                            <div class="mt-auto d-flex align-items-center poster-stack">
+                        <div class="mt-auto d-flex align-items-center poster-stack">
                             @foreach (var item in list.Items.Take(3))
                             {
-                                        <img src="@(item.Movie.PosterUrl?.StartsWith("http") == true ? item.Movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + item.Movie.PosterUrl)"
-                                             class="stack-img" alt="poster" />
+                                <img src="@(item.Movie.PosterUrl?.StartsWith("http") == true ? item.Movie.PosterUrl : "https://image.tmdb.org/t/p/w92" + item.Movie.PosterUrl)"
+                                     class="stack-img" alt="poster" />
                             }
                             @if (list.Items.Count > 3)
                             {
-                                        <span class="ms-2 text-secondary small">+@(list.Items.Count - 3)</span>
+                                <span class="ms-2 text-secondary small">+@(list.Items.Count - 3)</span>
                             }
-                            </div>
+                        </div>
 
                         @* Navigation link for the whole card *@
-                            <a asp-action="ListDetails" asp-route-id="@list.Id" class="stretched-link"></a>
-                        </div>
+                        <a asp-action="ListDetails" asp-route-id="@list.Id" class="stretched-link"></a>
                     </div>
                 </div>
+            </div>
         }
     </div>
 </div>
 
-@* Modal for New List *@
+@* --- HIDDEN DELETE FORM --- *@
+<form id="global-delete-form" asp-action="DeleteList" method="post" style="display:none;">
+    <input type="hidden" name="listId" id="delete-list-id" value="" />
+</form>
+
+@* --- NEW LIST MODAL --- *@
 <div class="modal fade" id="newListModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-white border-secondary">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg" style="border-radius: 20px;">
             <form asp-action="CreateCustomList" method="post">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title fw-bold">New Collection</h5>
+                <div class="modal-header border-0 pb-0">
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body py-4 text-center">
                     <i class="bi bi-folder-plus text-warning display-4 mb-3"></i>
-                    <input type="text" name="title" class="form-control form-control-lg bg-black text-white border-secondary text-center"
+                    <h4 class="fw-bold mb-3">New Collection</h4>
+                    <input type="text" name="title" class="form-control form-control-lg bg-black text-white border-secondary text-center rounded-pill"
                            placeholder="Name your list..." required autocomplete="off" />
                 </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning px-4 fw-bold">Create</button>
+                <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+                    <button type="submit" class="btn btn-warning px-5 py-2 rounded-pill fw-bold">CREATE LIST</button>
                 </div>
             </form>
         </div>
@@ -91,20 +91,71 @@
 </div>
 
 <style>
-    .list-card { transition: all 0.3s ease; border-radius: 16px; min-height: 180px; background: linear-gradient(145deg, #1a1a1a, #000000); }
-    .list-card:hover { transform: translateY(-10px); border-color: #ffc107 !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important; }
-    .icon-box { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
-    .system-icon { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
-    .custom-icon { background: rgba(255, 255, 255, 0.05); color: #fff; }
-    .poster-stack .stack-img { width: 32px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #000; margin-right: -12px; transition: 0.3s; }
-    .list-card:hover .stack-img { margin-right: 2px; }
-    .hover-opacity-100:hover { opacity: 1 !important; }
-    .z-3 { z-index: 3; position: relative; }
+    /* Card Styles */
+    .list-card {
+        transition: all 0.3s ease;
+        border-radius: 16px;
+        min-height: 180px;
+        background: linear-gradient(145deg, #1a1a1a, #000000);
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+        .list-card:hover {
+            transform: translateY(-10px);
+            border-color: #ffc107 !important;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important;
+        }
+
+    /* Icon Containers */
+    .icon-box {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+    }
+
+    .system-icon {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+    }
+
+    .custom-icon {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+    }
+
+    /* Poster Stacking Effect */
+    .poster-stack .stack-img {
+        width: 32px;
+        height: 45px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #000;
+        margin-right: -12px;
+        transition: 0.3s;
+    }
+
+    .list-card:hover .stack-img {
+        margin-right: 2px;
+    }
+
+    /* Utilities */
+    .hover-opacity-100:hover {
+        opacity: 1 !important;
+    }
+
+    .z-3 {
+        z-index: 5 !important;
+    }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function confirmDeleteList(event, id, title) {
-        // Stop the "stretched-link" from firing when clicking delete
+        // Stop the "stretched-link" from navigating to ListDetails
         event.preventDefault();
         event.stopPropagation();
 
@@ -117,11 +168,20 @@
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'Yes, delete it',
             background: '#1a1a1a',
-            color: '#fff'
+            color: '#fff',
+            customClass: {
+                popup: 'rounded-4 border border-secondary'
+            }
         }).then((result) => {
             if (result.isConfirmed) {
-                document.getElementById('delete-form-' + id).submit();
+                const form = document.getElementById('global-delete-form');
+                const input = document.getElementById('delete-list-id');
+
+                if (form && input) {
+                    input.value = id;
+                    form.submit();
+                }
             }
-        })
+        });
     }
 </script>
