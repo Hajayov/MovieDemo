@@ -74,8 +74,20 @@ namespace MovieDemo.Controllers
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity));
+            var authProperties = new AuthenticationProperties
+            {
+                // This is the key setting that "remembers" the user
+                IsPersistent = true,
+
+                // This ensures the browser expiration matches your 7-day server setting
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
+            // Pass 'authProperties' as the third argument here
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
 
             return RedirectToAction("IndexM", "Movies");
         }
